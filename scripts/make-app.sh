@@ -5,6 +5,7 @@
 # Usage: ./scripts/make-app.sh [target] [config]
 #   target: app   (default) -> dockman        -> Dockman.app
 #           spike           -> dockman-spike  -> Dockman-Spike.app
+#           probe           -> dock-city-overlay-probe -> Dock City Overlay Probe.app
 #   config: release (default) | debug
 set -euo pipefail
 
@@ -16,7 +17,8 @@ CONFIG="${2:-release}"
 case "$TARGET" in
   app)   EXEC="dock-city";     APP_NAME="Dock City";     BUNDLE_ID="com.metaparodica.DockCity"; DISPLAY="Dock City" ;;
   spike) EXEC="dockman-spike"; APP_NAME="DockCity-Spike"; BUNDLE_ID="com.metaparodica.DockCity.spike"; DISPLAY="Dock City (Spike)" ;;
-  *) echo "target must be 'app' or 'spike'"; exit 1 ;;
+  probe) EXEC="dock-city-overlay-probe"; APP_NAME="Dock City Overlay Probe"; BUNDLE_ID="com.metaparodica.DockCity.overlayProbe"; DISPLAY="Dock City Overlay Probe" ;;
+  *) echo "target must be 'app', 'spike' or 'probe'"; exit 1 ;;
 esac
 
 case "$CONFIG" in
@@ -29,6 +31,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 APP="build/${APP_NAME}.app"
+URL_SCHEME="dockcity"
+if [[ "$TARGET" == probe ]]; then URL_SCHEME="dockcity-overlay-probe"; fi
 
 echo "▶ Building $EXEC ($CONFIG)…"
 swift build $BUILD_FLAGS --product "$EXEC"
@@ -63,7 +67,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <array>
     <dict>
       <key>CFBundleURLName</key>     <string>${BUNDLE_ID}</string>
-      <key>CFBundleURLSchemes</key>  <array><string>dockcity</string></array>
+      <key>CFBundleURLSchemes</key>  <array><string>${URL_SCHEME}</string></array>
     </dict>
   </array>
 </dict>

@@ -25,12 +25,14 @@ products += [
     .library(name: "DockKit", targets: ["DockKit"]),
     .executable(name: "dock-city", targets: ["Dockman"]),
     .executable(name: "dockman-spike", targets: ["DockmanSpike"]),
+    .executable(name: "dock-city-overlay-probe", targets: ["DockCityOverlayProbe"]),
 ]
 targets += [
     .target(name: "SpacesKit", swiftSettings: v5),
     .target(name: "DockKit", dependencies: ["SpacesKit", "ConfigKit", "CityKit"], swiftSettings: v5),
     .executableTarget(name: "Dockman", dependencies: ["DockKit", "SpacesKit", "ConfigKit"], swiftSettings: v5),
     .executableTarget(name: "DockmanSpike", dependencies: ["SpacesKit"], swiftSettings: v5),
+    .executableTarget(name: "DockCityOverlayProbe", dependencies: ["DockKit", "CityKit"], swiftSettings: v5),
     .testTarget(name: "SpacesKitTests", dependencies: ["SpacesKit"], swiftSettings: v5),
     .testTarget(name: "DockKitTests", dependencies: ["DockKit", "SpacesKit", "ConfigKit", "CityKit"], swiftSettings: v5),
 ]

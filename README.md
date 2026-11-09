@@ -2,6 +2,9 @@
 
 > A living miniature city built around your macOS Dock.
 
+**실제 macOS Dock 오버레이 실험:** [별도 프로토타입 실행 및 합의 제안](docs/system-dock-prototype.md).
+현재 본 앱의 자체 Dock 모드는 보존되어 있으며, 실제 Dock으로의 구조 변경은 실험 결과와 합의 후 적용합니다.
+
 Dockman의 독립형 Dock에 앱 상태에 반응하는 Pixel Town을 추가한 macOS 14+ 앱입니다.
 **현재는 구현된 개발 버전입니다. macOS 빌드·GUI 실행 검증은 아직 필요합니다.**
 Linux에서 모델 테스트와 문법 검사를 실행했으며, AppKit 타입 검사나 `.app` 생성이 완료됐다고 주장하지 않습니다.
