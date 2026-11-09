@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(CoreGraphics)
+import CoreGraphics
+#endif
 
 /// A read-only AX observation. Missing bounds are preserved, not guessed.
 public struct SystemDockItem: Codable, Equatable, Sendable {
