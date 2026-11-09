@@ -12,7 +12,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build debug targets
-        run: swift --version && swift build --jobs 4
+        run: |
+          swift --version
+          if swift build --jobs 4 > "$RUNNER_TEMP/dock-city-build.log" 2>&1; then
+            cat "$RUNNER_TEMP/dock-city-build.log"
+          else
+            cat "$RUNNER_TEMP/dock-city-build.log"
+            node -e 'const fs=require("fs");const lines=fs.readFileSync(process.argv[1],"utf8").split(/\r?\n/).filter(x=>x.includes("error:")).slice(0,20);for(const line of lines)console.log("::error::"+line.replace(/%/g,"%25").replace(/\r/g,"%0D").replace(/\n/g,"%0A"))' "$RUNNER_TEMP/dock-city-build.log"
+            exit 1
+          fi
       - name: Run full test suite
         run: swift test --jobs 4
       - name: Package and verify local app
