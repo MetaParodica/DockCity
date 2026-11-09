@@ -13,7 +13,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         self.controller = controller
         super.init()
         if let button = item.button {
-            button.image = NSImage(systemSymbolName: "rectangle.stack.fill", accessibilityDescription: "Dockman")
+            button.image = NSImage(systemSymbolName: "building.2.fill", accessibilityDescription: "Dock City")
             button.image?.isTemplate = true
         }
         let menu = NSMenu()
@@ -56,7 +56,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         login.state = controller.isLoginItemEnabled ? .on : .off
         menu.addItem(login)
         menu.addItem(.separator())
-        addItem(to: menu, title: "Quit Dockman", key: "q", action: #selector(quit))
+        addItem(to: menu, title: "Quit Dock City", key: "q", action: #selector(quit))
     }
 
     private func makeDockSubmenu(for dock: DockModel, orphaned: Bool) -> NSMenu {

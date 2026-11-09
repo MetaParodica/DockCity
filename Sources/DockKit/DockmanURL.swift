@@ -14,7 +14,7 @@ public enum DockmanURL {
     }
 
     public static func parse(_ url: URL) -> Command? {
-        guard url.scheme == "dockman",
+        guard ["dockman", "dockcity"].contains(url.scheme ?? ""),
               let host = url.host?.lowercased(),
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         else { return nil }

@@ -1,148 +1,85 @@
-<p align="center">
-  <img src="logo.png" alt="Dockman" width="200">
-</p>
+# Dock City
 
-# Dockman
+> A living miniature city built around your macOS Dock.
 
-**Additional, fully customizable Docks for macOS — each one pinned to a specific desktop (Space).**
+Dockman의 독립형 Dock에 앱 상태에 반응하는 Pixel Town을 추가한 macOS 14+ 앱입니다.
+**현재는 구현된 개발 버전입니다. macOS 빌드·GUI 실행 검증은 아직 필요합니다.**
+Linux에서 모델 테스트와 문법 검사를 실행했으며, AppKit 타입 검사나 `.app` 생성이 완료됐다고 주장하지 않습니다.
 
-The built-in macOS Dock is a singleton: there is exactly one, it follows the active display, and you cannot have a different Dock per virtual desktop. Dockman lets you place one or more independent Docks and **bind each to a particular Space**, so switching desktops switches which Dock(s) you see. It works **without disabling System Integrity Protection (SIP)**, without Dock injection, and even when the system setting **"Displays have separate Spaces" is disabled**.
+## 구현
 
-> Verified on **macOS 26.5 (Tahoe), Apple Silicon (arm64)**, across 3 displays. Designed to also run on macOS 14 (Sonoma) and 15 (Sequoia).
+- Finder 물류센터, Safari 유리탑, Music 공연장, Terminal 서버센터, Calendar 시계탑 등 11개 스킨.
+- 기존 Dock 셀의 실제 중심 좌표를 공유하는 CALayer 도시. 별도 Dock 순서나 실행 로직이 없습니다.
+- 기존 NSWorkspace 모니터의 초기 상태와 실행·종료·활성화 이벤트를 사용한 창문 조명과 강조.
+- 클릭을 무시하는 투명 자식 NSPanel. Dock 창의 디스플레이·Spaces 및 자동 숨김 정책과 연결됩니다.
+- 보도, 도로, 가로등, 화분, 시민 3색, 자동차, 배달 차량. 활성 앱 변경 시 대표 시민과 배달 차량이 이동합니다.
+- 시스템 시간 07:00~17:59 주간 / 18:00~06:59 야간 및 수동 선택, 현재 시간을 표시하는 시계탑.
+- 크기, 조명, 앱별 스킨·팔레트, 인구·차량 수, FPS, 동작 줄이기, 저전력, 비표시 시 일시정지 설정.
+- 외부 이미지·폰트·오디오 없이 코드로 만든 그래픽. 새로운 데이터 수집이나 외부 통신은 없습니다.
 
----
+## Mac에서 빌드 및 실행
 
-## Features
+macOS 14 이상과 **Xcode 26 / Swift 6.2 이상**을 권장합니다.
+원본의 macOS 26 `NSGlassEffectView`를 가용성 검사 아래 사용하므로 최신 SDK가 필요합니다.
+배포 대상은 macOS 14이며 이전 OS에서는 기존 frosted 스타일로 폴백합니다.
 
-- **Per-desktop Docks** — bind any Dock to any Space; it appears on that desktop only, even with "Displays have separate Spaces" off.
-- **Multiple Docks** — run as many as you want, each with its own items, position, and style.
-- **Rich item kinds** — apps, files, folder stacks (with popovers), spacers, separators, custom actions, and a live **running-apps zone** that grows and shrinks as apps launch and quit.
-- **Live running indicators**, drag-and-drop reordering, drop-from-Finder, and context menus.
-- **Spatial targeting UI** — a visual monitor/desktop picker to move a Dock to any display or Space ([docs/09](docs/09-dock-targeting-ui.md)).
-- **`dockman://` URL scheme** — script your Docks: `dockman://toggle?dock=NAME`, plus `pin`, `show`, and `hide`.
-- **Resilient** — a Dock whose desktop is deleted parks on the current desktop with one-click re-pin; bindings survive login Space-ID churn; config migrates forward automatically.
-- **Faceless menu-bar agent** — no icon in the system Dock; everything is managed from the menu-bar item (▤ rectangle-stack icon).
-
-## How it works (the crux)
-
-macOS exposes no public API to pin a window to a *specific* Space — only `.canJoinAllSpaces` (every Space) or default (current Space). The private `SkyLight.framework` does expose per-Space placement. Since macOS 14.5, Apple gates these calls with a `connection_holds_rights_on_window` check, which is why tools like *yabai* now need SIP disabled. **That check protects the *target window*, not the function.** An app's connection always holds rights on the windows it created itself. Dockman only ever moves **its own Dock windows**, so it stays inside the permitted envelope and needs **no SIP changes and no special entitlements**. Full details: [`docs/02-technical-design.md`](docs/02-technical-design.md).
-
-> **Note:** Dockman uses private (undocumented) macOS APIs via runtime symbol lookup, with capability detection and graceful fallback. A new macOS release could change these APIs; the contract tests in this repo are the early-warning system ([docs/05](docs/05-risks-and-mitigations.md)).
-
----
-
-## Installation
-
-There are no prebuilt releases yet — you build from source, which takes about a minute.
-
-### Requirements
-
-- A Mac running **macOS 14 (Sonoma) or later** (developed and verified on macOS 26.5 / Apple Silicon).
-- **Xcode** (with its command-line tools selected) — provides the Swift 6 toolchain.
-  ```bash
-  xcode-select -p   # should print /Applications/Xcode.app/Contents/Developer
-  # if not: sudo xcode-select -s /Applications/Xcode.app
-  ```
-
-### Build & install
+저장소 루트에서 실제 Mac의 GUI 로그인 세션으로 실행하세요.
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/OSPK/Dockman.git
-cd Dockman
-
-# 2. Build a release binary and wrap it into an app bundle
-./scripts/make-app.sh            # produces build/Dockman.app
-
-# 3. (Optional) install it where apps live
-cp -R build/Dockman.app /Applications/
-
-# 4. Launch it
-open /Applications/Dockman.app   # or: open build/Dockman.app
+xcodebuild -version
+swift --version
+swift build --jobs 4
+swift test --jobs 4
+swift run dockman-spike --once
+./scripts/make-app.sh app release
+open 'build/Dock City.app'
 ```
 
-A new Dock appears on your current desktop, and a **rectangle-stack icon** appears in the menu bar — that's Dockman's control center. The app is ad-hoc signed by the build script, which is fine for an app built on your own machine; Gatekeeper will not complain.
+패키징은 `build/Dock City.app`을 만들고 개발용 ad-hoc 서명을 확인합니다.
+기존 빌드는 `build/previous-app.XXXXXX`에 보존합니다.
+Developer ID 서명과 notarization은 포함하지 않습니다.
+실행 후 메뉴 막대의 건물 아이콘 → Settings → Dock 선택에서 도시를 조절합니다.
+Launch at Login은 기존 General 설정을 사용합니다.
 
-### First launch
+## 데이터와 권한
 
-- On first launch, macOS may ask for **Accessibility** permission. This is **optional** — it's only needed for the "summon an app's window onto this Dock's screen when clicked" feature. Everything else works without it.
-- To start Dockman automatically at login: **System Settings ▸ General ▸ Login Items ▸ +** and add `Dockman.app`.
+- Bundle ID: `com.metaparodica.DockCity`
+- 설정: `~/Library/Application Support/com.metaparodica.DockCity/config.json` 및 `.bak`
+- URL: `dockcity://toggle?dock=Dock%201`
+- 기존 Dockman 설정을 읽거나 덮어쓰지 않습니다. 기존 `dockman://` 명령은 내부 파싱만 유지하고 URL 핸들러는 등록하지 않습니다.
+- 접근성 권한은 창 소환 기능을 사용자가 켤 때만 요청합니다. 도시와 앱 실행에는 필요하지 않습니다.
+- macOS 기본 Dock은 변경하지 않습니다. 원본 숨김 유틸리티는 보존하되 UI와 시작 경로에서 호출하지 않습니다.
+- Spaces는 원본 SkyLight 비공개 API와 기능 감지·폴백을 유지합니다. SIP 변경은 필요하지 않습니다.
 
-### Using it
+## 구조와 출처
 
-- **Menu bar ▸ rectangle-stack icon** — create/remove Docks, pin a Dock to a desktop, open the monitor/desktop picker, quit.
-- **Drag and drop** — drag apps or files from Finder onto a Dock; drag items to reorder; right-click for context menus.
-- **Scripting** — e.g. `open "dockman://toggle?dock=Work"` from a terminal, Shortcuts, or a hotkey tool.
-- Configuration is stored as plain JSON at `~/Library/Application Support/xyz.waqas.dockman/config.json` (written atomically, with backup).
+원본: [OSPK/Dockman](https://github.com/OSPK/Dockman),
+commit `507398cbab2ead1f36c6f209d40f35a2ad1e9386`.
+Git 이력을 가져온 `dock-city` 브랜치에서 개발했습니다. 원본 MIT [LICENSE](LICENSE)와 저작권을 유지합니다.
+Docky 코드나 자산은 사용하지 않았습니다. [원본 README](docs/upstream-readme.md)와 기존 `docs/`를 보존합니다.
 
-### Uninstall
+| 파일 / 모듈 | 역할 |
+| --- | --- |
+| `Sources/ConfigKit/CitySettings.swift` | 스킨·팔레트·시간대·밀도·전력 설정 |
+| `Sources/CityKit/CitySimulation.swift` | 앱 상태 판정과 시민·차량 상태 머신 |
+| `Sources/DockKit/DockContentView.swift` | 기존 셀 좌표 공개, 많은 항목의 stack 압축 |
+| `Sources/DockKit/CityScene.swift` | 캐시된 CALayer 픽셀아트·조명·시계·인구 렌더링 |
+| `Sources/DockKit/CityPanel.swift` | 클릭 통과, 위치·회전, 타이머 및 저전력 |
+| `Sources/DockKit/DockController.swift` | Dock·도시 창의 수명, Spaces 및 표시 동기화 |
+| `Sources/Dockman/CitySettingsView.swift` | 기존 JSON 저장·reconcile 경로를 사용하는 설정 |
+| `scripts/make-app.sh` | 앱 명칭·독립 Bundle ID·개발용 서명 패키징 |
 
-```bash
-killall dockman 2>/dev/null
-rm -rf /Applications/Dockman.app
-rm -rf ~/Library/Application\ Support/xyz.waqas.dockman
-```
+기존 `SpacesKit`, `BindingResolver`, `DockPanel`, `DockItemCell`, `RunningZone`,
+`AppActivityMonitor`, `ConfigStore`와 앱 실행·드래그·컨텍스트 메뉴를 재사용합니다.
+원본에는 `DockLayerRenderer`라는 클래스가 없으므로 실제 `DockContentView`를 확장했습니다.
 
----
+## 검증과 제한
 
-## Development
+[검증 기록 및 Mac 수동 테스트](docs/dock-city-validation.md)를 참고하세요.
+macOS CI를 추가했지만 GitHub에 푸시하거나 실행하지는 않았습니다.
+Linux `swift test`는 ConfigKit/CityKit만 빌드하며 DockKit/SpacesKit 테스트는 macOS에 유지됩니다.
 
-Dockman is a plain Swift package — no Xcode project needed.
-
-```bash
-swift build                        # build everything (debug)
-swift test                         # unit + contract tests (31)
-swift run dockman-spike -- --once  # feasibility gate: proves Space-pinning works on this machine, exits 0 on pass
-./scripts/make-app.sh app debug    # debug build of the agent app
-```
-
-The contract tests and the spike talk to the real WindowServer, so they must run in a **GUI login session** — not over headless SSH. See [`docs/08-building.md`](docs/08-building.md) for the full build / test / sign / notarize / distribute pipeline.
-
-### Project layout
-
-| Module | Purpose |
-|--------|---------|
-| `SpacesKit` | SkyLight symbol resolution, Space topology, SIP-safe window→Space pinning, notification-driven `SpaceMonitor` |
-| `ConfigKit` | Codable config model + atomic, backup-protected JSON store |
-| `DockKit` | Non-activating dock window, item cells & rendering, binding resolver, per-dock controller, targeting UI |
-| `Dockman` | The faceless menu-bar agent app |
-| `DockmanSpike` | Phase-0 feasibility spike (round-trip pinning proof, usable as a CI gate) |
-
-### Documentation index
-
-| Doc | Purpose |
-|-----|---------|
-| [`docs/00-glossary.md`](docs/00-glossary.md) | Shared vocabulary (Space, display, DHSS, SLS, etc.) |
-| [`docs/01-product-spec.md`](docs/01-product-spec.md) | Vision, personas, feature requirements, scope |
-| [`docs/02-technical-design.md`](docs/02-technical-design.md) | **The core**: Spaces model, SkyLight APIs, the pinning mechanism |
-| [`docs/03-architecture.md`](docs/03-architecture.md) | Modules, data model, control flow, threading, persistence |
-| [`docs/04-ux-design.md`](docs/04-ux-design.md) | Visual design, interactions, settings UI, accessibility |
-| [`docs/05-risks-and-mitigations.md`](docs/05-risks-and-mitigations.md) | Anticipated problems and concrete solutions |
-| [`docs/06-build-distribution.md`](docs/06-build-distribution.md) | Signing, notarization, packaging, auto-update |
-| [`docs/07-roadmap.md`](docs/07-roadmap.md) | Phased delivery plan with acceptance gates |
-| [`docs/08-building.md`](docs/08-building.md) | Build / test / sign / notarize / deploy |
-| [`docs/09-dock-targeting-ui.md`](docs/09-dock-targeting-ui.md) | The spatial monitor/desktop picker |
-
-## Status & roadmap
-
-| Phase | Scope | Status |
-|-------|-------|--------|
-| 0 — Feasibility gate | Prove SIP-safe per-Space pinning of own windows | ✅ Passed |
-| 1 — Walking skeleton | Agent app, default dock, pin-to-desktop, app launching | ✅ Done |
-| 2 — Resilience | Orphan parking & re-pin, binding restore across logins, fullscreen policy, config migration, multi-display reconcile | ✅ Done |
-| 3 — Multiple docks & richer items | Item kinds, running-apps zone, drag-and-drop, folder stacks, URL scheme | ✅ Done |
-| 4 — Design & polish | Settings window, styles, magnification, auto-hide | 🚧 Next |
-
-**31 tests green.** Acceptance criteria verified live on a 3-display setup with "Displays have separate Spaces" off. See [`docs/07-roadmap.md`](docs/07-roadmap.md) for the full plan.
-
-## Contributing
-
-Issues and pull requests are welcome. Before opening a PR:
-
-1. Read [`docs/03-architecture.md`](docs/03-architecture.md) — the module boundaries are deliberate.
-2. Run `swift test` and `swift run dockman-spike -- --once` in a GUI session; both must pass.
-3. Anything touching `SpacesKit` must keep the `dlsym`-based symbol indirection and capability fallbacks intact.
-
-## License
-
-Dockman is released under the [MIT License](LICENSE).
+GUI 품질, 상단/세로 Dock 회전, 여러 화면과 Spaces, 전체 회귀 및 macOS 14 호환성은 미검증입니다.
+내장 스킨·팔레트만 지원하며 임의 이미지 가져오기는 없습니다.
+눈 효과, 계정, 외부 서버, 날씨, 음악 분석은 범위에 포함하지 않습니다.
+실제 Mac에서 아래 검증을 완료하기 전에는 v1.0 완료로 간주하지 마세요.

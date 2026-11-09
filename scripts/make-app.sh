@@ -8,12 +8,14 @@
 #   config: release (default) | debug
 set -euo pipefail
 
+[[ "$(uname -s)" == Darwin ]] || { echo "Dock City packaging requires macOS 14+ and Xcode." >&2; exit 1; }
+
 TARGET="${1:-app}"
 CONFIG="${2:-release}"
 
 case "$TARGET" in
-  app)   EXEC="dockman";       APP_NAME="Dockman";       BUNDLE_ID="xyz.waqas.dockman";       DISPLAY="Dockman" ;;
-  spike) EXEC="dockman-spike"; APP_NAME="Dockman-Spike"; BUNDLE_ID="xyz.waqas.dockman-spike"; DISPLAY="Dockman (Spike)" ;;
+  app)   EXEC="dock-city";     APP_NAME="Dock City";     BUNDLE_ID="com.metaparodica.DockCity"; DISPLAY="Dock City" ;;
+  spike) EXEC="dockman-spike"; APP_NAME="DockCity-Spike"; BUNDLE_ID="com.metaparodica.DockCity.spike"; DISPLAY="Dock City (Spike)" ;;
   *) echo "target must be 'app' or 'spike'"; exit 1 ;;
 esac
 
@@ -35,7 +37,9 @@ BIN_PATH="$(swift build $BUILD_FLAGS --show-bin-path)/${EXEC}"
 [ -x "$BIN_PATH" ] || { echo "binary not found at $BIN_PATH"; exit 1; }
 
 echo "▶ Assembling $APP …"
-rm -rf "$APP"
+if [[ -e "$APP" ]]; then
+  mv "$APP" "$(mktemp -d build/previous-app.XXXXXX)/${APP_NAME}.app"
+fi
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_PATH" "$APP/Contents/MacOS/${EXEC}"
 
@@ -59,7 +63,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <array>
     <dict>
       <key>CFBundleURLName</key>     <string>${BUNDLE_ID}</string>
-      <key>CFBundleURLSchemes</key>  <array><string>dockman</string></array>
+      <key>CFBundleURLSchemes</key>  <array><string>dockcity</string></array>
     </dict>
   </array>
 </dict>
@@ -68,7 +72,7 @@ PLIST
 
 echo "▶ Ad-hoc signing (local run only)…"
 codesign --force --sign - --timestamp=none "$APP"
-codesign --verify --verbose=2 "$APP" || true
+codesign --verify --strict --verbose=2 "$APP"
 
 echo "✅ Built $APP"
 echo "   Run:  open \"$APP\""

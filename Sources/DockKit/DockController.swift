@@ -12,6 +12,7 @@ public final class DockController {
 
     private var windows: [String: DockPanel] = [:]        // displayUUID -> window
     private var views: [String: DockContentView] = [:]
+    private var cities: [String: CityPanel] = [:]
 
     /// True when the bound Space(s) no longer exist and the Dock is parked on the
     /// current desktop awaiting a re-pin (docs/05 R-3, AC-4).
@@ -74,6 +75,9 @@ public final class DockController {
 
         // Drop windows for displays we no longer target.
         for (uuid, panel) in windows where !targetUUIDs.contains(uuid) {
+            if let city = cities.removeValue(forKey: uuid) {
+                spaces.unregisterOwnedWindow(CGWindowID(city.windowNumber)); city.stop()
+            }
             spaces.unregisterOwnedWindow(CGWindowID(panel.windowNumber))
             panel.orderOut(nil)
             windows[uuid] = nil
@@ -97,6 +101,12 @@ public final class DockController {
                 panel.contentView = view
                 windows[uuid] = panel
                 views[uuid] = view
+                let city = CityPanel(dock: panel)
+                cities[uuid] = city
+                view.onCityLayout = { [weak self, weak city] tiles in
+                    guard let self else { return }
+                    city?.configure(tiles: tiles, settings: self.model.city, edge: self.model.appearance.edge)
+                }
             }
 
             view.configure(items: model.items, iconSize: CGFloat(model.appearance.iconSize),
@@ -132,8 +142,12 @@ public final class DockController {
             }
 
             panel.orderFrontRegardless()
+            view.layoutSubtreeIfNeeded()
+            cities[uuid]?.collectionBehavior = panel.collectionBehavior
+            cities[uuid]?.sync()
             let wid = CGWindowID(panel.windowNumber)
             spaces.registerOwnedWindow(wid)
+            if let city = cities[uuid] { spaces.registerOwnedWindow(CGWindowID(city.windowNumber)) }
 
             switch model.binding.mode {
             case .spaces:
@@ -143,12 +157,14 @@ public final class DockController {
                                                           allowOrdinal: !everResolvedExact)
                 if !res.spaceIDs.isEmpty {
                     spaces.set(window: wid, spaces: res.spaceIDs)
+                    if let city = cities[uuid] { spaces.set(window: CGWindowID(city.windowNumber), spaces: res.spaceIDs) }
                     if res.matchedExactly { everResolvedExact = true }
                 } else if !model.binding.spaces.isEmpty {
                     // Orphaned: bound Space(s) gone. Park on the current desktop so the
                     // Dock stays usable; the menu surfaces a one-click re-pin (AC-4).
                     if let park = currentSpaceInfo(displayUUID: uuid, topology: topology)?.id {
                         spaces.move(window: wid, toExactly: park)
+                        if let city = cities[uuid] { spaces.move(window: CGWindowID(city.windowNumber), toExactly: park) }
                     }
                     orphanedThisPass = true
                 }
@@ -158,6 +174,7 @@ public final class DockController {
                 let type = currentSpaceInfo(displayUUID: uuid, topology: topology)?.type ?? .unknown
                 if type == .fullscreen && !model.behavior.showOverFullscreen {
                     panel.orderOut(nil)
+                    cities[uuid]?.orderOut(nil)
                 } else {
                     panel.orderFrontRegardless()
                 }
@@ -167,6 +184,10 @@ public final class DockController {
     }
 
     public func teardown() {
+        for city in cities.values {
+            spaces.unregisterOwnedWindow(CGWindowID(city.windowNumber)); city.stop()
+        }
+        cities.removeAll()
         for (_, panel) in windows {
             spaces.unregisterOwnedWindow(CGWindowID(panel.windowNumber))
             panel.orderOut(nil)
@@ -228,6 +249,9 @@ public final class DockController {
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.18
             panel.animator().alphaValue = visible ? 1 : 0
+            if let uuid = windows.first(where: { $0.value === panel })?.key {
+                cities[uuid]?.animator().alphaValue = visible ? 1 : 0
+            }
         }
     }
 
@@ -272,6 +296,8 @@ public final class DockController {
             guard let panel = windows[uuid],
                   let screen = NSScreen.screens.first(where: { Self.uuid(for: $0) == uuid }) else { continue }
             panel.setFrame(Self.frame(for: model.appearance, size: view.fittingSize(), screenFrame: screen.frame), display: true)
+            view.layoutSubtreeIfNeeded()
+            cities[uuid]?.sync()
         }
     }
 

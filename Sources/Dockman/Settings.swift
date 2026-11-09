@@ -71,6 +71,7 @@ struct DockSettingsView: View {
     var body: some View {
         if let dock = controller.dock(dockID) {
             Form {
+                CitySettingsSection(controller: controller, dockID: dockID)
                 Section("Dock") {
                     TextField("Name", text: Binding(
                         get: { dock.name }, set: { controller.renameDock(dockID, $0) }))
@@ -352,19 +353,12 @@ struct GeneralSettingsView: View {
                     get: { controller.isLoginItemEnabled },
                     set: { _ in controller.toggleLaunchAtLogin() }))
             }
-            Section("System Dock") {
-                Toggle("Hide the built-in macOS Dock", isOn: Binding(
-                    get: { controller.config.global.hideSystemDock },
-                    set: { controller.setHideSystemDock($0) }))
-                Text("Restored automatically when turned off.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
             Section("Docks") {
                 Button("Add Dock on Current Desktop") { controller.newDockHere() }
             }
             Section("About") {
                 LabeledContent("Version", value: appVersion())
-                LabeledContent("Scripting", value: "dockman://toggle?dock=Name")
+                LabeledContent("Scripting", value: "dockcity://toggle?dock=Name")
             }
         }
         .formStyle(.grouped)
@@ -395,7 +389,7 @@ final class SettingsWindowController {
         if window == nil {
             let hosting = NSHostingController(rootView: SettingsRootView(controller: controller))
             let w = NSWindow(contentViewController: hosting)
-            w.title = "Dockman Settings"
+            w.title = "Dock City Settings"
             w.styleMask = [.titled, .closable, .miniaturizable]
             w.setContentSize(NSSize(width: 700, height: 540))
             w.isReleasedWhenClosed = false

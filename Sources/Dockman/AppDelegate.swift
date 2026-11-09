@@ -10,11 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.start()
         statusItem = StatusItemController(controller: controller)
 
-        // Prompt for Accessibility on launch (needed to summon app windows onto a
-        // Dock's screen). Only shows the dialog if not already granted.
-        if !AXWindowControl.isTrusted {
-            AXWindowControl.requestTrust()
-        }
+        // Accessibility is requested only if the user enables window summoning.
 
         // Register the dockman:// scripting scheme (docs/01 §4.6).
         NSAppleEventManager.shared().setEventHandler(

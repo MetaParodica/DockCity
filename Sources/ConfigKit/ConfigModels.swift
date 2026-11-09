@@ -204,10 +204,11 @@ public struct DockModel: Codable, Equatable, Identifiable, Sendable {
     public var appearance: Appearance
     public var behavior: Behavior
     public var enabled: Bool
+    public var city: CitySettings
 
     public init(id: UUID = UUID(), name: String, items: [DockItem],
                 binding: Binding, appearance: Appearance = Appearance(),
-                behavior: Behavior = Behavior(), enabled: Bool = true) {
+                behavior: Behavior = Behavior(), enabled: Bool = true, city: CitySettings = CitySettings()) {
         self.id = id
         self.name = name
         self.items = items
@@ -215,10 +216,11 @@ public struct DockModel: Codable, Equatable, Identifiable, Sendable {
         self.appearance = appearance
         self.behavior = behavior
         self.enabled = enabled
+        self.city = city
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, items, binding, appearance, behavior, enabled
+        case id, name, items, binding, appearance, behavior, enabled, city
     }
 
     // Tolerant decoding so configs written by older schema versions (no `behavior`,
@@ -232,6 +234,7 @@ public struct DockModel: Codable, Equatable, Identifiable, Sendable {
         appearance = try c.decodeIfPresent(Appearance.self, forKey: .appearance) ?? Appearance()
         behavior = try c.decodeIfPresent(Behavior.self, forKey: .behavior) ?? Behavior()
         enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        city = try c.decodeIfPresent(CitySettings.self, forKey: .city) ?? CitySettings()
     }
 }
 

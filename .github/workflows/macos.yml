@@ -1,0 +1,27 @@
+name: macOS build and tests
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build debug targets
+        run: swift --version && swift build --jobs 4
+      - name: Run full test suite
+        run: swift test --jobs 4
+      - name: Package and verify local app
+        run: |
+          ./scripts/make-app.sh app release
+          ditto -c -k --keepParent 'build/Dock City.app' build/Dock-City.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Dock-City-local-build
+          path: build/Dock-City.zip
+          if-no-files-found: error
+      # SkyLight contract tests and the spike additionally need a real GUI login.

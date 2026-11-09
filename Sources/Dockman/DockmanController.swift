@@ -41,7 +41,7 @@ final class DockmanController: ObservableObject {
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main
         ) { [weak self] _ in self?.reconcileAll() }
         syncLoginItem()
-        syncSystemDock()
+        // Dock City leaves the built-in Dock and its preferences untouched.
         reconcileAll()
     }
 
@@ -173,6 +173,7 @@ final class DockmanController: ObservableObject {
     func setMagnificationScale(_ id: UUID, _ scale: Double) { mutate(id) { $0.appearance.magnificationScale = scale } }
     func setPadding(_ id: UUID, _ points: Double) { mutate(id) { $0.appearance.padding = points } }
     func setEdgeGap(_ id: UUID, _ points: Double) { mutate(id) { $0.appearance.edgeGap = points } }
+    func setCity(_ id: UUID, _ settings: CitySettings) { mutate(id) { $0.city = settings } }
 
     // Item management (Settings "Items" editor + dock context menus).
     func moveItems(_ id: UUID, from: IndexSet, to: Int) { mutate(id) { $0.items.move(fromOffsets: from, toOffset: to) } }

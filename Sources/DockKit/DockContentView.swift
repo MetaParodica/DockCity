@@ -1,10 +1,36 @@
 import AppKit
 import ConfigKit
+import CityKit
 
 /// Renders a Dock's items as a row of cells over a frosted background, with running
 /// indicators, a dynamic running-apps zone, folder-stack popovers, drag-and-drop
 /// (reorder + drop-from-Finder), and per-item context menus (docs/04 §4).
 public final class DockContentView: NSView {
+    var onCityLayout: (([CityTile]) -> Void)?
+    private var cityRunning: [RunningAppInfo] = []
+
+    public override func layout() {
+        super.layout()
+        publishCityLayout()
+    }
+
+    private func publishCityLayout() {
+        var occurrences: [String: Int] = [:]
+        let tiles = stack.arrangedSubviews.compactMap { view -> CityTile? in
+            guard let cell = view as? DockItemCell, let path = cell.item.appPath else { return nil }
+            let frame = cell.convert(cell.bounds, to: self)
+            let bundleID = Bundle(path: path)?.bundleIdentifier
+            let state = CityAppState.activity(bundleID: bundleID, path: path, running: cityRunning.map {
+                CityAppState(bundleID: $0.bundleID, path: $0.bundlePath, active: $0.isActive)
+            })
+            let occurrence = occurrences[path, default: 0]
+            occurrences[path] = occurrence + 1
+            return CityTile(id: "\(path):\(occurrence)", bundleID: bundleID,
+                            center: Double(vertical ? frame.midY : frame.midX),
+                            width: Double(vertical ? frame.height : frame.width), activity: state)
+        }
+        onCityLayout?(tiles)
+    }
     /// app/file/zone-app item activated.
     public var onActivateItem: ((DockItem) -> Void)?
     /// an action item fired.
@@ -168,7 +194,28 @@ public final class DockContentView: NSView {
                           edge: Appearance.Edge = .bottom, magnify: Bool = false,
                           magnifyScale: CGFloat = CGFloat(Appearance.defaultMagnificationScale),
                           padding: CGFloat = CGFloat(Appearance.defaultPadding)) {
+        // Fit user-managed items using the existing stack; the city reads these
+        // adjusted cell frames rather than inventing its own compact layout.
+        let cells = items.filter { item in
+            switch item { case .app, .file, .folder, .action: return true; default: return false }
+        }.count
+        let fixed = items.reduce(CGFloat(0)) { sum, item in
+            switch item {
+            case .separator: return sum + DockGapCell.separatorLength
+            case .spacer(let points): return sum + max(1, CGFloat(points))
+            default: return sum
+            }
+        }
+        let gaps = CGFloat(max(0, items.count - 1)) * Self.gap
+        let dotBudget = vertical ? CGFloat(cells) * DockItemCell.dotZone : 0
+        let usable = max(1, maxLength - (padding + 2) * 2 - dotBudget)
+        let requested = CGFloat(cells) * iconSize + fixed + gaps
+        let compactScale = maxLength.isFinite && requested > usable ? usable / max(1, requested) : 1
+        let iconSize = max(1, iconSize * compactScale)
+        let itemGap = Self.gap * compactScale
+        stack.spacing = itemGap
         self.items = items
+        self.cityRunning = running
         self.iconSize = iconSize
         self.vertical = vertical
         self.edge = edge
@@ -200,9 +247,9 @@ public final class DockContentView: NSView {
         let cellLen = vertical ? iconSize + DockItemCell.dotZone : iconSize
         var used: CGFloat = 0
         func wouldFit(_ length: CGFloat) -> Bool {
-            used + (used > 0 ? Self.gap : 0) + length <= budget
+            used + (used > 0 ? itemGap : 0) + length <= budget
         }
-        func consume(_ length: CGFloat) { used += (used > 0 ? Self.gap : 0) + length }
+        func consume(_ length: CGFloat) { used += (used > 0 ? itemGap : 0) + length }
 
         for (index, item) in items.enumerated() {
             switch item {
@@ -210,11 +257,11 @@ public final class DockContentView: NSView {
                 stack.addArrangedSubview(makeCell(item: item, modelIndex: index, running: runningPaths))
                 consume(cellLen)
             case .separator:
-                stack.addArrangedSubview(makeGapCell(item: item, modelIndex: index, length: separatorLen))
-                consume(separatorLen)
+                stack.addArrangedSubview(makeGapCell(item: item, modelIndex: index, length: separatorLen * compactScale))
+                consume(separatorLen * compactScale)
             case .spacer(let points):
-                stack.addArrangedSubview(makeGapCell(item: item, modelIndex: index, length: CGFloat(points)))
-                consume(CGFloat(points))
+                stack.addArrangedSubview(makeGapCell(item: item, modelIndex: index, length: CGFloat(points) * compactScale))
+                consume(CGFloat(points) * compactScale)
             case .runningAppsZone:
                 let zoneApps = RunningZone.apps(running: running, pinnedAppPaths: pinnedPaths)
                 if (!pinnedPaths.isEmpty || !zoneApps.isEmpty), wouldFit(separatorLen) {
@@ -231,6 +278,7 @@ public final class DockContentView: NSView {
                 }
             }
         }
+        needsLayout = true
     }
 
     /// Margin at the bar's two ends (along its length). Slightly larger than the

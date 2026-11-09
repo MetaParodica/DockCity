@@ -1,7 +1,7 @@
 import Foundation
 
 /// Atomic, backup-protected JSON persistence for the Dockman `Config`
-/// (docs/03 §6). Lives at ~/Library/Application Support/xyz.waqas.dockman/config.json.
+/// (docs/03 §6). Dock City's independent com.metaparodica.DockCity directory.
 public final class ConfigStore {
     public let directory: URL
     public let fileURL: URL
@@ -10,7 +10,7 @@ public final class ConfigStore {
     public init(directory: URL? = nil) {
         let base = directory ?? FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("xyz.waqas.dockman", isDirectory: true)
+            .appendingPathComponent("com.metaparodica.DockCity", isDirectory: true)
         self.directory = base
         self.fileURL = base.appendingPathComponent("config.json")
     }
