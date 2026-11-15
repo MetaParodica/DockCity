@@ -23,6 +23,8 @@ jobs:
           fi
       - name: Run full test suite
         run: swift test --jobs 4
+      - name: Run optimized test suite
+        run: swift test -c release --jobs 4
       - name: Package and verify local app
         run: |
           ./scripts/make-app.sh app release
@@ -41,4 +43,4 @@ jobs:
           name: Dock-City-local-build
           path: build/Dock-City.zip
           if-no-files-found: error
-      # SkyLight contract tests and the spike additionally need a real GUI login.
+      # Real Dock tracking, TCC and input forwarding additionally need manual GUI validation.

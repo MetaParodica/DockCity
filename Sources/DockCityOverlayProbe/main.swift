@@ -3,7 +3,7 @@ import ApplicationServices
 import DockKit
 import CityKit
 
-// Isolated feasibility probe. It never starts DockmanController or DockPanel.
+// Isolated geometry diagnostic; it does not start the city's renderer.
 struct Options {
     var once = false
     var requestAccess = false
@@ -119,7 +119,7 @@ final class ProbeController: NSObject, NSApplicationDelegate {
         let quit = NSMenuItem(title: "Quit probe", action: #selector(quit), keyEquivalent: "q")
         quit.target = self; menu.addItem(quit); statusItem?.menu = menu
         log("Dock overlay probe: read-only AX, \(options.interval)s poll, configured level \(options.level). Click/drag/right-click verification is MANUAL.")
-        if options.requestAccess { AXWindowControl.requestTrust() }
+        if options.requestAccess { DockAccessibility.requestTrust() }
         poll()
         let t = Timer(timeInterval: options.interval, repeats: true) { [weak self] _ in
             DispatchQueue.main.async { [weak self] in self?.poll() }
@@ -129,7 +129,7 @@ final class ProbeController: NSObject, NSApplicationDelegate {
 
     private func poll() {
         guard !busy else { return }
-        guard AXWindowControl.isTrusted else {
+        guard DockAccessibility.isTrusted else {
             panel.orderOut(nil); state("Waiting for Accessibility permission")
             if !permissionNoticeShown {
                 permissionNoticeShown = true
@@ -141,7 +141,7 @@ final class ProbeController: NSObject, NSApplicationDelegate {
                 alert.addButton(withTitle: "Quit")
                 NSApp.activate(ignoringOtherApps: true)
                 let result = alert.runModal()
-                if result == .alertFirstButtonReturn { AXWindowControl.requestTrust() }
+                if result == .alertFirstButtonReturn { DockAccessibility.requestTrust() }
                 else if result == .alertSecondButtonReturn { openAccessibility() }
                 else { quit() }
             }
@@ -168,7 +168,7 @@ final class ProbeController: NSObject, NSApplicationDelegate {
     }
 
     private func apply(_ snapshot: SystemDockSnapshot) {
-        guard AXWindowControl.isTrusted else { panel.orderOut(nil); return }
+        guard DockAccessibility.isTrusted else { panel.orderOut(nil); return }
         let primaryMaxY = NSScreen.screens.first?.frame.maxY ?? 0
         let pairs = snapshot.items.compactMap { item -> (SystemDockItem, CGRect)? in
             guard let rect = item.axFrame else { return nil }
@@ -229,8 +229,8 @@ let options = Options()
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 if options.once {
-    if options.requestAccess { AXWindowControl.requestTrust() }
-    guard AXWindowControl.isTrusted else {
+    if options.requestAccess { DockAccessibility.requestTrust() }
+    guard DockAccessibility.isTrusted else {
         log("Accessibility permission required. Launch the packaged probe to grant access; no synthetic coordinates or overlay were produced."); exit(2)
     }
     guard let dock = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first else {

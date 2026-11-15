@@ -36,6 +36,9 @@ public final class ConfigStore {
         var c = config
         // v1 → v2: `Behavior` introduced (defaults applied at decode time).
         if c.schemaVersion < 2 { c.schemaVersion = 2 }
+        // v2 → v3: a single global city follows the real macOS Dock.
+        if c.schemaVersion < 3 { c.schemaVersion = 3 }
+        if c.schemaVersion < 4 { c.schemaVersion = 4 }
         // Never downgrade a newer file we don't understand.
         c.schemaVersion = max(c.schemaVersion, config.schemaVersion)
         return c

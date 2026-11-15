@@ -45,15 +45,18 @@ public struct CitySimulation {
     public private(set) var citizens: [CityActor] = []
     public private(set) var vehicles: [CityActor] = []
     private var activeID: String?
+    private var activeCenter: Double?
     private var width = 1.0
     public init() {}
 
     public mutating func configure(width: Double, settings: CitySettings, night: Bool) {
+        let previousCitizenCount = citizens.count, previousVehicleCount = vehicles.count
         self.width = max(1, width)
         let n = settings.citizensEnabled ? min(settings.citizenDensity.count, max(0, Int(width / 55))) : 0
         let v = settings.trafficEnabled && width >= 90 ? (settings.trafficDensity == .normal ? 2 : min(3, settings.trafficDensity.count)) : 0
         Self.resize(&citizens, count: night ? min(2, n) : n, width: self.width, vehicles: false)
         Self.resize(&vehicles, count: v, width: self.width, vehicles: true)
+        if previousCitizenCount != citizens.count || previousVehicleCount != vehicles.count { activeCenter = nil }
     }
 
     private static func resize(_ actors: inout [CityActor], count: Int, width: Double, vehicles: Bool) {
@@ -71,8 +74,9 @@ public struct CitySimulation {
     }
 
     public mutating func activate(_ tile: CityTile?) {
-        guard tile?.id != activeID else { return }
+        guard tile?.id != activeID || tile?.center != activeCenter else { return }
         activeID = tile?.id
+        activeCenter = tile?.center
         guard let tile else { return }
         let target = min(max(tile.center, 10), max(10, width - 10))
         if !citizens.isEmpty {

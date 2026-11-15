@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Wrap a built Dockman executable into a faceless agent .app bundle (LSUIElement)
+# Wrap the Dock tracking agent into an .app bundle (LSUIElement)
 # and ad-hoc sign it so it runs as an agent on this machine.
 #
 # Usage: ./scripts/make-app.sh [target] [config]
-#   target: app   (default) -> dockman        -> Dockman.app
-#           spike           -> dockman-spike  -> Dockman-Spike.app
+#   target: app   (default) -> dock-city -> Dock City.app
 #           probe           -> dock-city-overlay-probe -> Dock City Overlay Probe.app
 #   config: release (default) | debug
 set -euo pipefail
@@ -16,9 +15,8 @@ CONFIG="${2:-release}"
 
 case "$TARGET" in
   app)   EXEC="dock-city";     APP_NAME="Dock City";     BUNDLE_ID="com.metaparodica.DockCity"; DISPLAY="Dock City" ;;
-  spike) EXEC="dockman-spike"; APP_NAME="DockCity-Spike"; BUNDLE_ID="com.metaparodica.DockCity.spike"; DISPLAY="Dock City (Spike)" ;;
   probe) EXEC="dock-city-overlay-probe"; APP_NAME="Dock City Overlay Probe"; BUNDLE_ID="com.metaparodica.DockCity.overlayProbe"; DISPLAY="Dock City Overlay Probe" ;;
-  *) echo "target must be 'app', 'spike' or 'probe'"; exit 1 ;;
+  *) echo "target must be 'app' or 'probe'"; exit 1 ;;
 esac
 
 case "$CONFIG" in

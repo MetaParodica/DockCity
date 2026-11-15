@@ -1,8 +1,13 @@
 import AppKit
 
-/// Tracks running regular (UI) applications and notifies on change, so Docks can
-/// keep running indicators and the running-apps zone live — notification-driven,
-/// no polling (docs/01 AC-6).
+public struct RunningAppInfo: Equatable {
+    public let bundleID: String?
+    public let bundlePath: String?
+    public let name: String
+    public let isActive: Bool
+}
+
+/// Notification-driven app state for the buildings above the real Dock.
 public final class AppActivityMonitor {
     public var onChange: (() -> Void)?
     private var tokens: [NSObjectProtocol] = []

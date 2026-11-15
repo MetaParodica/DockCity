@@ -1,88 +1,73 @@
 # Dock City
 
-> A living miniature city built around your macOS Dock.
+> A living miniature city following your existing macOS Dock.
 
-**실제 macOS Dock 오버레이 실험:** [별도 프로토타입 실행 및 합의 제안](docs/system-dock-prototype.md).
-현재 본 앱의 자체 Dock 모드는 보존되어 있으며, 실제 Dock으로의 구조 변경은 실험 결과와 합의 후 적용합니다.
+개발 인수인계는 [온보딩](docs/onboarding.md), 다음 기능 후보는 [창 장식 오픈소스 조사](docs/window-effects-research.md)를 참고하세요.
 
-Dockman의 독립형 Dock에 앱 상태에 반응하는 Pixel Town을 추가한 macOS 14+ 앱입니다.
-**현재는 구현된 개발 버전입니다. macOS 빌드·GUI 실행 검증은 아직 필요합니다.**
-Linux에서 모델 테스트와 문법 검사를 실행했으며, AppKit 타입 검사나 `.app` 생성이 완료됐다고 주장하지 않습니다.
+Dock City는 **실제 macOS Dock을 추적하는 도시 장식 앱**입니다.
+자체 Dock 생성, 별도 아이콘, 앱 실행·재정렬·폴더 스택, Spaces 고정 기능은 제거했습니다.
+앱 실행과 클릭·드래그·우클릭은 기존 macOS Dock이 처리합니다.
 
-## 구현
+**창과 Dock 적설**을 추가했습니다. 일반 창 상단과 실제 Dock의 윗면에 눈이 쌓이고,
+창을 빠르게 이동하거나 크기를 바꾸면 눈이 떨어집니다. 도시와 독립적으로 설정할 수 있습니다.
+방향 화살표를 드래그해 강설의 360도 방향과 속도를 설정할 수 있습니다.
+하단 Dock은 위쪽 테두리, 좌·우 Dock은 상단 모서리에 쌓입니다.
+[눈 기능과 검증 절차](docs/snow-validation.md)를 참고하세요. macOS 실행은 아직 미검증입니다.
 
-- Finder 물류센터, Safari 유리탑, Music 공연장, Terminal 서버센터, Calendar 시계탑 등 11개 스킨.
-- 기존 Dock 셀의 실제 중심 좌표를 공유하는 CALayer 도시. 별도 Dock 순서나 실행 로직이 없습니다.
-- 기존 NSWorkspace 모니터의 초기 상태와 실행·종료·활성화 이벤트를 사용한 창문 조명과 강조.
-- 클릭을 무시하는 투명 자식 NSPanel. Dock 창의 디스플레이·Spaces 및 자동 숨김 정책과 연결됩니다.
-- 보도, 도로, 가로등, 화분, 시민 3색, 자동차, 배달 차량. 활성 앱 변경 시 대표 시민과 배달 차량이 이동합니다.
-- 시스템 시간 07:00~17:59 주간 / 18:00~06:59 야간 및 수동 선택, 현재 시간을 표시하는 시계탑.
-- 크기, 조명, 앱별 스킨·팔레트, 인구·차량 수, FPS, 동작 줄이기, 저전력, 비표시 시 일시정지 설정.
-- 외부 이미지·폰트·오디오 없이 코드로 만든 그래픽. 새로운 데이터 수집이나 외부 통신은 없습니다.
+## 동작
 
-## Mac에서 빌드 및 실행
+- 접근성 API의 실제 항목 좌표·역할·앱 URL을 읽고 도시 건물을 정렬합니다.
+- 하단·좌측·우측 Dock, 아이콘 크기·확대·순서 변화와 화면 이동을 추적합니다.
+- 도시 패널은 Dock의 화면 안쪽에 배치되며 포커스와 마우스 입력을 받지 않습니다.
+- 실제 앱 URL과 실행 상태를 연결해 11개 스킨, 조명, 시민·차량, 시계와 주야간을 표시합니다.
+- Dock이 숨겨지거나 좌표가 불완전하거나 오래되면 도시를 숨깁니다. 절전·화면 잠자기 및 권한 철회도 처리합니다.
+- Dock 재시작 시 새 PID를 찾아 다시 추적합니다. 비동기 읽기는 직렬화하고 오래된 응답은 버립니다.
+- Dock 환경설정을 변경하거나 Dock 프로세스를 종료하지 않습니다. SkyLight 비공개 API를 사용하지 않습니다.
 
-macOS 14 이상과 **Xcode 26 / Swift 6.2 이상**을 권장합니다.
-원본의 macOS 26 `NSGlassEffectView`를 가용성 검사 아래 사용하므로 최신 SDK가 필요합니다.
-배포 대상은 macOS 14이며 이전 OS에서는 기존 frosted 스타일로 폴백합니다.
+## Mac에서 실행
 
-저장소 루트에서 실제 Mac의 GUI 로그인 세션으로 실행하세요.
+macOS 14 이상과 Swift 6 이상을 지원 대상으로 합니다. 실제 GUI 로그인 세션이 필요합니다.
 
 ```bash
-xcodebuild -version
-swift --version
 swift build --jobs 4
 swift test --jobs 4
-swift run dockman-spike --once
 ./scripts/make-app.sh app release
 open 'build/Dock City.app'
 ```
 
-패키징은 `build/Dock City.app`을 만들고 개발용 ad-hoc 서명을 확인합니다.
-기존 빌드는 `build/previous-app.XXXXXX`에 보존합니다.
-Developer ID 서명과 notarization은 포함하지 않습니다.
-실행 후 메뉴 막대의 건물 아이콘 → Settings → Dock 선택에서 도시를 조절합니다.
-Launch at Login은 기존 General 설정을 사용합니다.
+첫 실행에서 Settings 창이 열리면 **Allow Accessibility access**를 선택하고
+시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용에서 Dock City를 승인하세요.
+권한 없이 자체 Dock을 생성하는 대체 경로는 없습니다. 승인 후 추적을 자동 재시도합니다.
+서명이 달라지면 macOS에서 접근성 승인을 다시 확인해야 할 수 있습니다.
 
-## 데이터와 권한
+메뉴 막대의 건물 아이콘에서 Settings, 도시 일시정지·재개, 종료를 선택할 수 있습니다.
+도시 크기·주야간·조명·인구·차량·FPS·저전력·앱별 스킨과 색상을 설정할 수 있습니다.
+Dock 위치·크기·확대·자동 숨김·아이콘 목록은 macOS 설정과 실제 Dock에서 변경하세요.
+
+## 설정과 기존 데이터
 
 - Bundle ID: `com.metaparodica.DockCity`
 - 설정: `~/Library/Application Support/com.metaparodica.DockCity/config.json` 및 `.bak`
-- URL: `dockcity://toggle?dock=Dock%201`
-- 기존 Dockman 설정을 읽거나 덮어쓰지 않습니다. 기존 `dockman://` 명령은 내부 파싱만 유지하고 URL 핸들러는 등록하지 않습니다.
-- 접근성 권한은 창 소환 기능을 사용자가 켤 때만 요청합니다. 도시와 앱 실행에는 필요하지 않습니다.
-- macOS 기본 Dock은 변경하지 않습니다. 원본 숨김 유틸리티는 보존하되 UI와 시작 경로에서 호출하지 않습니다.
-- Spaces는 원본 SkyLight 비공개 API와 기능 감지·폴백을 유지합니다. SIP 변경은 필요하지 않습니다.
+- 스키마 v4는 전역 도시 설정과 독립적인 눈 설정을 사용합니다.
+- 이전 설정은 첫 번째 활성 Dock의 도시 설정을 가져오며, 모두 비활성일 때는 첫 항목을 사용합니다.
+- 기존 Dock 목록은 데이터 호환성을 위해 보존하지만 표시·실행하지 않습니다.
+- 기존 `dockcity://` 자체 Dock 제어 명령과 창 소환 기능은 제거했습니다.
+- 접근성 정보는 로컬에서만 사용하며 외부로 전송하지 않습니다.
 
-## 구조와 출처
+## 검증
 
-원본: [OSPK/Dockman](https://github.com/OSPK/Dockman),
-commit `507398cbab2ead1f36c6f209d40f35a2ad1e9386`.
-Git 이력을 가져온 `dock-city` 브랜치에서 개발했습니다. 원본 MIT [LICENSE](LICENSE)와 저작권을 유지합니다.
-Docky 코드나 자산은 사용하지 않았습니다. [원본 README](docs/upstream-readme.md)와 기존 `docs/`를 보존합니다.
+Linux에서는 ConfigKit·CityKit의 설정 이전, 앱 상태, 시민 시뮬레이션,
+실제 Dock 좌표 변환·클리핑·숨김 판단을 테스트합니다. macOS 테스트에는 장식 패널의
+입력 통과 설정, 포커스 정책 및 추적기 시작·종료 검사가 추가됩니다.
 
-| 파일 / 모듈 | 역할 |
-| --- | --- |
-| `Sources/ConfigKit/CitySettings.swift` | 스킨·팔레트·시간대·밀도·전력 설정 |
-| `Sources/CityKit/CitySimulation.swift` | 앱 상태 판정과 시민·차량 상태 머신 |
-| `Sources/DockKit/DockContentView.swift` | 기존 셀 좌표 공개, 많은 항목의 stack 압축 |
-| `Sources/DockKit/CityScene.swift` | 캐시된 CALayer 픽셀아트·조명·시계·인구 렌더링 |
-| `Sources/DockKit/CityPanel.swift` | 클릭 통과, 위치·회전, 타이머 및 저전력 |
-| `Sources/DockKit/DockController.swift` | Dock·도시 창의 수명, Spaces 및 표시 동기화 |
-| `Sources/Dockman/CitySettingsView.swift` | 기존 JSON 저장·reconcile 경로를 사용하는 설정 |
-| `scripts/make-app.sh` | 앱 명칭·독립 Bundle ID·개발용 서명 패키징 |
+현재 Linux 자동 검증은 통과했습니다. **macOS 네이티브 빌드와 실제 클릭 통과·GUI 품질은 미검증**입니다.
+AX가 낡은 좌표를 반환하거나 CG 창 정보를 제공하지 않으면 도시가 일시적으로 숨겨질 수 있습니다.
+Dock 항목에 앱 URL이 없으면 이름으로 앱을 추측하지 않고 기본 건물로 표시합니다.
+성공적인 실제 Mac 검증 전에는 배포 완료로 간주하지 않습니다.
+[검증 목록](docs/dock-city-validation.md)과 [독립 좌표 진단 도구](docs/system-dock-prototype.md)를 참고하세요.
 
-기존 `SpacesKit`, `BindingResolver`, `DockPanel`, `DockItemCell`, `RunningZone`,
-`AppActivityMonitor`, `ConfigStore`와 앱 실행·드래그·컨텍스트 메뉴를 재사용합니다.
-원본에는 `DockLayerRenderer`라는 클래스가 없으므로 실제 `DockContentView`를 확장했습니다.
+## 출처
 
-## 검증과 제한
-
-[검증 기록 및 Mac 수동 테스트](docs/dock-city-validation.md)를 참고하세요.
-macOS CI를 추가했지만 GitHub에 푸시하거나 실행하지는 않았습니다.
-Linux `swift test`는 ConfigKit/CityKit만 빌드하며 DockKit/SpacesKit 테스트는 macOS에 유지됩니다.
-
-GUI 품질, 상단/세로 Dock 회전, 여러 화면과 Spaces, 전체 회귀 및 macOS 14 호환성은 미검증입니다.
-내장 스킨·팔레트만 지원하며 임의 이미지 가져오기는 없습니다.
-눈 효과, 계정, 외부 서버, 날씨, 음악 분석은 범위에 포함하지 않습니다.
-실제 Mac에서 아래 검증을 완료하기 전에는 v1.0 완료로 간주하지 마세요.
+원본 [OSPK/Dockman](https://github.com/OSPK/Dockman)의 Git 이력과 MIT [LICENSE](LICENSE)를 유지합니다.
+원본 자체 Dock 구현은 추적 방식 전환으로 제거되었으며 Git 이력에서 확인할 수 있습니다.
+`docs/01`~`docs/09`는 원본 구조·로드맵에 대한 과거 기록입니다. 현재 동작은 이 README를 기준으로 합니다.

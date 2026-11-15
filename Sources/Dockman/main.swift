@@ -1,7 +1,10 @@
 import AppKit
 
-// Dockman — Phase 1 walking skeleton. A faceless agent (no system-Dock icon)
-// that shows one or more per-Space Docks driven from a menu-bar item.
+// A single decoration agent following the existing macOS Dock.
+if let id = Bundle.main.bundleIdentifier,
+   NSRunningApplication.runningApplications(withBundleIdentifier: id).contains(where: { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) {
+    exit(0)
+}
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

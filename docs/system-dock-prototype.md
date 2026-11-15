@@ -1,5 +1,10 @@
 # 실제 macOS Dock 오버레이: 프로토타입과 합의 제안
 
+> 현재: 사용자가 실제 Dock 추적 전용 전환과 자체 Dock 제거를 선택하여 본 앱에 적용했습니다.
+> 아래의 자체 Dock 보존·모드 선택 제안은 과거 기록이며 더 이상 현재 계획이 아닙니다.
+> 본 앱의 실행·검증은 README와 dock-city-validation.md를 기준으로 합니다.
+> 이 문서의 probe 실행 방법은 독립 진단 도구에 해당합니다.
+
 현재 단계는 요청한 작업 순서의 **1단계**입니다. 본 앱은 아직 기존 자체 Dock 모드입니다.
 아래 실행 파일은 본 앱과 독립적으로 실행되며 `DockmanController`/`DockPanel`을 생성하지 않습니다.
 ConfigStore나 설정 JSON 스키마, AppActivityMonitor, 기존 도시 그래픽은 변경하지 않습니다.

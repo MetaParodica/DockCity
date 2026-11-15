@@ -16,21 +16,23 @@ public struct SystemDockSnapshot: Codable {
 }
 
 public enum SystemDockReadError: Error, CustomStringConvertible {
-    case permissionRequired, listUnavailable(Int32), tooManyElements
+    case permissionRequired, listUnavailable(Int32), tooManyElements, timedOut
     public var description: String {
         switch self {
         case .permissionRequired: return "Accessibility permission required; no Dock geometry was read."
         case .listUnavailable(let code): return "No readable Dock AXList (AX error \(code)). Reveal the Dock and retry."
         case .tooManyElements: return "Dock AX traversal reached its safety limit; result is incomplete."
+        case .timedOut: return "Dock AX read exceeded its time budget; waiting for fresh geometry."
         }
     }
 }
 
-/// Used by the isolated overlay probe only. No AX actions, preference writes,
+/// Shared read-only tracker. No AX actions, preference writes,
 /// event injection, application launching, or private Dock process modification.
 public enum SystemDockAXReader {
     public static func read(pid: pid_t) throws -> SystemDockSnapshot {
         guard AXIsProcessTrusted() else { throw SystemDockReadError.permissionRequired }
+        let deadline = ProcessInfo.processInfo.systemUptime + 0.6
         let app = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(app, 0.15) // client timeout, not a Dock setting
         var queue: [(AXUIElement, Int)] = [(app, 0)]
@@ -38,6 +40,7 @@ public enum SystemDockAXReader {
         var list: AXUIElement?
         var lastError: AXError = .success
         while offset < queue.count && offset < 256 {
+            guard ProcessInfo.processInfo.systemUptime < deadline else { throw SystemDockReadError.timedOut }
             let (element, depth) = queue[offset]; offset += 1
             if string(element, kAXRoleAttribute) == kAXListRole as String { list = element; break }
             if depth < 5 {
@@ -56,15 +59,20 @@ public enum SystemDockAXReader {
         guard result == .success, let children = value as? [AXUIElement] else {
             throw SystemDockReadError.listUnavailable(result.rawValue)
         }
-        let items = children.prefix(512).enumerated().map { index, child in
-            SystemDockItem(index: index, role: string(child, kAXRoleAttribute),
+        var items: [SystemDockItem] = []
+        for (index, child) in children.prefix(512).enumerated() {
+            guard ProcessInfo.processInfo.systemUptime < deadline else { throw SystemDockReadError.timedOut }
+            items.append(SystemDockItem(index: index, role: string(child, kAXRoleAttribute),
                            subrole: string(child, kAXSubroleAttribute),
-                           title: string(child, kAXTitleAttribute), axFrame: frame(child))
+                           title: string(child, kAXTitleAttribute), axFrame: frame(child),
+                           applicationURL: applicationURL(child)))
         }
+        guard ProcessInfo.processInfo.systemUptime < deadline else { throw SystemDockReadError.timedOut }
         let listFrame = frame(list)
         let window = dockWindow(pid: pid, listFrame: listFrame)
         return SystemDockSnapshot(pid: pid,
-            orientation: preference("orientation") as? String,
+            // An absent preference uses macOS's factory-default bottom Dock.
+            orientation: (preference("orientation") as? String) ?? "bottom",
             tileSize: (preference("tilesize") as? NSNumber)?.doubleValue,
             autohide: (preference("autohide") as? NSNumber)?.boolValue,
             axListFrame: listFrame, items: items, dockWindowFrame: window?.0,
@@ -73,6 +81,13 @@ public enum SystemDockAXReader {
 
     private static func preference(_ key: String) -> CFPropertyList? {
         CFPreferencesCopyAppValue(key as CFString, "com.apple.dock" as CFString)
+    }
+    private static func applicationURL(_ element: AXUIElement) -> URL? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXURLAttribute as CFString, &value) == .success else { return nil }
+        let url = (value as? URL) ?? (value as? String).flatMap(URL.init(string:))
+        guard let url, url.isFileURL, url.pathExtension.lowercased() == "app" else { return nil }
+        return url.standardizedFileURL
     }
     private static func string(_ element: AXUIElement, _ attribute: String) -> String {
         var value: CFTypeRef?

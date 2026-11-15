@@ -11,10 +11,12 @@ public struct SystemDockItem: Codable, Equatable, Sendable {
     public var subrole: String
     public var title: String
     public var axFrame: CGRect?
+    public var applicationURL: URL?
 
-    public init(index: Int, role: String, subrole: String, title: String, axFrame: CGRect?) {
+    public init(index: Int, role: String, subrole: String, title: String, axFrame: CGRect?, applicationURL: URL? = nil) {
         self.index = index; self.role = role; self.subrole = subrole
         self.title = title; self.axFrame = axFrame
+        self.applicationURL = applicationURL
     }
     public var kind: Kind {
         let raw = (role + " " + subrole).lowercased()

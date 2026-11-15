@@ -1,5 +1,9 @@
 # 07 — Roadmap & Phased Delivery
 
+> Historical upstream roadmap. Dock City now follows the real macOS Dock only.
+> Custom Dock creation and SpacesKit have been removed. See README.md and
+> docs/dock-city-validation.md for the current implementation and pending checks.
+
 The plan is **de-risk first**: prove the one uncertain thing (private-API space pinning on this exact OS) before building UI on top of it.
 
 ---

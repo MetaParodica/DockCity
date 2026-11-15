@@ -1,29 +1,21 @@
-# Dock City validation record
+# Dock City 추적 모드 검증
 
-## Provenance and environment
+눈 방향 벡터 추가 후 전체 검증은 Linux debug/release 각 68개 성공입니다.
+아래 31개는 도시 전환 당시 기록이며, 현행 눈 기능과 Mac 검증 절차는 [적설 검증](snow-validation.md)을 참고하세요.
 
-- Base: https://github.com/OSPK/Dockman
-- SHA: `507398cbab2ead1f36c6f209d40f35a2ad1e9386`
-- Branch: `dock-city`; reachable upstream history and MIT license retained. No push performed.
-- Executor: Debian 13 x86_64 Linux; no Xcode, AppKit SDK or WindowServer.
-- Toolchain: official Swift 6.0.3 Ubuntu 22.04 release, downloaded over verified HTTPS from download.swift.org.
+## 현재 구현
 
-## Automated checks
+자체 Dock 및 SpacesKit/SkyLight 실행 경로는 제거했습니다.
+본 앱은 SystemDockAXReader → TrackedCityLayout → TrackedCityPanel/CityScene 경로만 사용합니다.
+독립 진단용 overlay-probe는 도시를 렌더링하지 않으며 별도 제품으로 유지합니다.
 
-Initially, upstream build and test commands failed because Swift was absent.
-After installation, an untouched upstream archive was built separately to identify
-the platform blocker. That build failed at `import CoreGraphics` with
-`no such module 'CoreGraphics'`, confirming the untouched original needs macOS.
+## Linux 검증
 
-The initial Dock City portable run executed 14 XCTest cases with zero failures:
-6 CityKit cases and 8 original ConfigKit cases. One original case,
-`testWriteRichDemoConfig`, is an opt-in helper and does no work unless `DOCKMAN_DEMO=1`.
-It is not readiness evidence. The remaining 13 cases exercise legacy JSON defaults,
-backup recovery, app state and missing IDs, day/night boundaries, persisted overrides,
-actor bounds, entrance/exit states, and rapid activation retargeting.
-No DockKit or SpacesKit tests executed on Linux.
-
-To reproduce with the retained cloud toolchain from the repository root:
+Swift 6.0.3, x86_64 Linux에서 모델 테스트 31개가 통과했습니다.
+기존 opt-in 데모 생성 도우미 1개는 환경변수가 없으면 동작하지 않으므로 실질 검증은 30개입니다.
+추가한 테스트는 실제 아이콘 중심 정렬, 좌우 회전, 음수 화면 좌표, 화면 클리핑,
+숨겨짐·불완전 좌표, 앱 URL JSON 호환성, 같은 활성 앱의 재정렬,
+기존 도시 설정 이전 및 백업 복구를 포함합니다.
 
 ```bash
 export PATH="/workspace/toolchains/swift-6.0.3-RELEASE-ubuntu22.04/usr/bin:$PATH"
@@ -36,47 +28,35 @@ swift test --jobs 4 \
   --security-path /workspace/toolchains/package-security
 ```
 
-Swift frontend syntax parsing, `bash -n scripts/make-app.sh` and `git diff --check`
-are additional static checks; none establishes native AppKit type correctness.
+Linux는 AppKit 코드를 타입 검사하거나 실제 Dock을 실행하지 않습니다.
+Swift 문법 검사 성공은 네이티브 빌드 성공의 증거가 아닙니다.
 
-Final Linux run: portable compilation and the same 14 XCTest cases passed with
-zero failures (13 substantive cases plus the inactive demo helper). Every Swift
-file in Sources/Tests passed frontend syntax parsing; shell syntax and diff
-whitespace checks passed. Packaging was attempted and correctly refused Linux
-with `Dock City packaging requires macOS 14+ and Xcode.` No `.app` was generated.
+## 실제 Mac 필수 검증 — 미실행
 
-## Required Mac validation — pending
-
-In a GUI login session, run:
+GUI 로그인 세션에서 이전 Dock City를 종료한 뒤 실행합니다.
 
 ```bash
 swift build --jobs 4
 swift test --jobs 4
-swift run dockman-spike --once
 ./scripts/make-app.sh app release
 codesign --verify --strict --verbose=2 'build/Dock City.app'
 open 'build/Dock City.app'
 ```
 
-New `CityLayoutTests` checks actual cell center alignment and identity on reorder,
-crowded Dock fitting, and a click-through decoration panel that hides when disabled.
-Those tests have not executed here. The macOS workflow runs the full suite and builds
-an ad-hoc signed app artifact, but has not been triggered by this task.
+- 접근성 미승인: 안내 Settings만 열리고 도시·별도 Dock이 나타나지 않아야 합니다.
+- 승인: 자동으로 실제 Dock 위에 건물이 정렬되어야 합니다.
+- 권한 철회: 다음 추적 주기에 도시가 숨겨져야 합니다.
+- 실제 Dock 클릭·우클릭·드래그: macOS가 기존대로 처리해야 합니다.
+- 아이콘 순서·크기·확대 변경: 건물 중심이 따라야 합니다.
+- 하단·좌측·우측과 Retina·음수 좌표 보조 화면: 정렬과 방향을 확인합니다.
+- 자동 숨김·전체화면·Spaces 전환: Dock이 없는 곳에 도시가 남으면 실패입니다.
+- Dock 종료·재시작: 새 PID를 찾아 복구해야 합니다. 앱이 Dock을 재시작하지는 않습니다.
+- 화면 연결·분리·잠자기·깨우기: 이전 화면의 패널이 남으면 실패입니다.
+- 앱 실행·활성화·종료: URL로 식별된 건물의 상태가 바뀌어야 합니다.
+- 기존 설정: 첫 활성 항목의 도시 설정을 가져오고 자체 Dock 창은 생성하지 않아야 합니다.
+- 저전력·동작 줄이기·일시정지·재개·종료·재실행을 확인합니다.
+- 로그인 실행: macOS 승인 상태와 실제 로그인 후 시작을 확인합니다.
 
-Manual scenarios (all pending):
-
-- Finder/Safari/Terminal/Music/Calendar have distinct roofs, windows and doors.
-- Launch, quit and quickly switch apps; only matching lights respond.
-- Verify unknown apps and missing bundle IDs, pinned and transient running items.
-- Click icons, reorder, pin/unpin apps, drop files and open folder stacks.
-- Resize/reorder Docks, magnify icons and use 30+ items; verify exact alignment.
-- Observe citizen walking/entry/exit and delivery stops after real app activation.
-- Force day/night; test automatic transitions, local timezone changes and wake.
-- Change every city control, quit/relaunch, and verify saved per-app choices.
-- Switch Spaces/fullscreen, auto-hide, attach/detach monitors and test all edges.
-- Verify Reduce Motion, macOS Low Power and paused rendering while hidden.
-- Measure CPU, memory and energy over a long session; no numbers are claimed here.
-- Confirm original Dockman settings and URL handler remain untouched.
-
-This is an implemented development version, not a verified Dock City v1.0 release.
-No `.app`, notarization or native GUI execution is claimed in this Linux environment.
+macOS 전용 패널 테스트는 입력 통과/포커스 속성과 수명 관리를 확인합니다.
+실제 입력 통과와 시각 품질은 위 수동 검증이 필요합니다.
+CG 창 정보가 없거나 AX 결과가 오래되면 도시를 숨기는 것이 현재 보수적 동작입니다.
