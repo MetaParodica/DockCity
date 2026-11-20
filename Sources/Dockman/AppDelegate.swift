@@ -8,18 +8,12 @@ final class DockCityController: ObservableObject {
     @Published private(set) var config: Config
     @Published private(set) var status = "Starting Dock tracking"
     @Published private(set) var saveError: String?
-    @Published private(set) var snowStatus = "Starting snow"
     let tracker = SystemDockCityTracker()
-    let snow = SnowOverlayController()
     private let store = ConfigStore()
     init() { config = store.load() }
     func start() {
         tracker.onStatus = { [weak self] in self?.status = $0 }
         tracker.onApplicationsChanged = { [weak self] in self?.objectWillChange.send() }
-        tracker.onDockSnapshot = { [weak self] in self?.snow.setDockSnapshot($0) }
-        tracker.tracksDockGeometry = config.snow.enabled && config.snow.accumulateOnDock
-        snow.onStatus = { [weak self] in self?.snowStatus = $0 }
-        snow.start(settings: config.snow)
         tracker.start(settings: config.city)
         if config.global.launchAtLogin, SMAppService.mainApp.status != .enabled {
             do { try SMAppService.mainApp.register() }
@@ -27,10 +21,6 @@ final class DockCityController: ObservableObject {
         }
     }
     func setCity(_ value: CitySettings) { config.city = value; persist(); tracker.update(settings: value) }
-    func setSnow(_ value: SnowSettings) {
-        config.snow = value; persist(); snow.update(settings: value)
-        tracker.tracksDockGeometry = value.enabled && value.accumulateOnDock
-    }
     func setLaunchAtLogin(_ value: Bool) {
         do {
             if value { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
@@ -57,10 +47,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.target = self; menu.addItem(settings)
         let pause = NSMenuItem(title: "Pause / Resume city", action: #selector(toggleCity), keyEquivalent: "")
         pause.target = self; menu.addItem(pause)
-        let snow = NSMenuItem(title: "Pause / Resume snow", action: #selector(toggleSnow), keyEquivalent: "")
-        snow.target = self; menu.addItem(snow)
-        let clear = NSMenuItem(title: "Clear settled snow", action: #selector(clearSnow), keyEquivalent: "")
-        clear.target = self; menu.addItem(clear)
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit Dock City", action: #selector(quit), keyEquivalent: "q")
         quit.target = self; menu.addItem(quit); statusItem.menu = menu
@@ -79,8 +65,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindow?.showWindow(nil); settingsWindow?.window?.makeKeyAndOrderFront(nil)
     }
     @objc private func toggleCity() { var city = controller.config.city; city.enabled.toggle(); controller.setCity(city) }
-    @objc private func toggleSnow() { var settings = controller.config.snow; settings.enabled.toggle(); controller.setSnow(settings) }
-    @objc private func clearSnow() { controller.snow.clearSnow() }
     @objc private func quit() { NSApp.terminate(nil) }
-    func applicationWillTerminate(_ notification: Notification) { controller.tracker.stop(); controller.snow.stop() }
+    func applicationWillTerminate(_ notification: Notification) { controller.tracker.stop() }
 }

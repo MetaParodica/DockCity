@@ -10,6 +10,7 @@ public struct RunningAppInfo: Equatable {
 /// Notification-driven app state for the buildings above the real Dock.
 public final class AppActivityMonitor {
     public var onChange: (() -> Void)?
+    public var onLaunch: ((String?, String?) -> Void)?
     private var tokens: [NSObjectProtocol] = []
     private var pending: DispatchWorkItem?
     private let debounce: TimeInterval
@@ -19,7 +20,13 @@ public final class AppActivityMonitor {
     }
 
     public func start() {
+        guard tokens.isEmpty else { return }
         let nc = NSWorkspace.shared.notificationCenter
+        tokens.append(nc.addObserver(forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] notification in
+            guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  app.activationPolicy == .regular else { return }
+            self?.onLaunch?(app.bundleIdentifier, app.bundleURL?.standardizedFileURL.path)
+        })
         for name: NSNotification.Name in [
             NSWorkspace.didLaunchApplicationNotification,
             NSWorkspace.didTerminateApplicationNotification,

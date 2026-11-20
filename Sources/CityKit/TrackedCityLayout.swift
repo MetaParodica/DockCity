@@ -26,7 +26,7 @@ public struct TrackedCityLayout {
     }
 
     public static func make(items: [SystemDockItem], primaryMaxY: CGFloat, screens: [CGRect],
-                            orientation: SystemDockOrientation, height: CGFloat, gap: CGFloat = 3) -> Self? {
+                            orientation: SystemDockOrientation, height: CGFloat, gap: CGFloat = 1) -> Self? {
         guard height.isFinite, height > 0, gap.isFinite, gap >= 0 else { return nil }
         let pairs = items.compactMap { item -> (SystemDockItem, CGRect)? in
             guard let ax = item.axFrame, SystemDockGeometry.valid(ax) else { return nil }

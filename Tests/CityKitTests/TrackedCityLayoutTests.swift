@@ -16,7 +16,7 @@ final class TrackedCityLayoutTests: XCTestCase {
         let b = CGRect(x: 175, y: 8, width: 80, height: 80)
         let layout = try XCTUnwrap(TrackedCityLayout.make(items: [item(a), item(b, index: 1)], primaryMaxY: 700,
             screens: [screen], orientation: .bottom, height: 90))
-        XCTAssertEqual(layout.frame, CGRect(x: 100, y: 91, width: 155, height: 90))
+        XCTAssertEqual(layout.frame, CGRect(x: 100, y: 89, width: 155, height: 90))
         XCTAssertEqual(layout.center(of: a), 25)
         XCTAssertEqual(layout.center(of: b), 115)
         XCTAssertFalse(layout.frame.intersects(a)); XCTAssertFalse(layout.frame.intersects(b))
@@ -58,7 +58,7 @@ final class TrackedCityLayoutTests: XCTestCase {
     func testCityClipsToScreenAndRefusesNoRemainingSpace() throws {
         let a = item(CGRect(x: 100, y: 650, width: 50, height: 20))
         let layout = try XCTUnwrap(TrackedCityLayout.make(items: [a], primaryMaxY: 700, screens: [screen], orientation: .bottom, height: 90))
-        XCTAssertEqual(layout.depth, 27)
+        XCTAssertEqual(layout.depth, 29)
         XCTAssertNil(TrackedCityLayout.make(items: [item(CGRect(x: 100, y: 650, width: 50, height: 50))], primaryMaxY: 700,
             screens: [screen], orientation: .bottom, height: 90))
         XCTAssertNil(TrackedCityLayout.make(items: [a], primaryMaxY: 700, screens: [screen], orientation: .bottom, height: -.infinity))

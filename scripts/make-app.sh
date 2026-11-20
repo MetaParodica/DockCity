@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Wrap the Dock tracking agent into an .app bundle (LSUIElement)
-# and ad-hoc sign it so it runs as an agent on this machine.
+# and sign it (ad-hoc unless DOCKCITY_SIGN_IDENTITY selects a local identity).
 #
 # Usage: ./scripts/make-app.sh [target] [config]
 #   target: app   (default) -> dock-city -> Dock City.app
@@ -72,9 +72,11 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-echo "▶ Ad-hoc signing (local run only)…"
-codesign --force --sign - --timestamp=none "$APP"
+SIGN_IDENTITY="${DOCKCITY_SIGN_IDENTITY:--}"
+echo "▶ Signing (DOCKCITY_SIGN_IDENTITY, default: ad-hoc)…"
+codesign --force --sign "$SIGN_IDENTITY" --timestamp=none "$APP"
 codesign --verify --strict --verbose=2 "$APP"
+codesign -dr - "$APP"
 
 echo "✅ Built $APP"
 echo "   Run:  open \"$APP\""

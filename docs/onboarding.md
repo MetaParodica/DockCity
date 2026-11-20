@@ -1,42 +1,52 @@
 # Dock City 개발 인수인계
 
-기준: 2026-11-12. 이 문서는 현재 작업 트리의 상태를 기록합니다.
-기준 커밋은 `fff8baade365ebb9761c89611cbd72230796fd37`이며 아래 전환 작업은 아직 커밋되지 않았습니다.
+기준: 2026-11-20(한국 시간). 기반 커밋 `4d05891d393a1bf28c945f95a7037027fa7fe8b7`에 대한 2차 피드백입니다.
+아래 변경은 2026-11-20 사용자 요청으로 `main`에 게시하는 작업 범위입니다.
+기존 원격 `dock-city` 브랜치는 보존합니다. macOS 네이티브 CI·실제 화면 검증은 별도로 확인해야 합니다.
 
-## 확정된 제품 방향
+## 제품 방향
 
-- 실제 macOS Dock을 추적하는 장식 앱으로 개발합니다.
-- 자체 Dock 생성 기능은 제거했습니다. 선택 가능한 대체 모드도 만들지 않습니다.
-- 아이콘 실행·재정렬·드래그·컨텍스트 메뉴는 macOS가 처리합니다.
-- 접근성 미승인, 불완전/오래된 좌표, Dock 부재 시 도시를 숨깁니다.
-- Dock 환경설정을 바꾸거나 Dock을 종료하지 않습니다.
-- SkyLight/SpacesKit와 자체 Dock 제어 URL 경로는 제거했습니다.
-- `docs/01`~`docs/09`의 자체 Dock 설계는 과거 기록입니다. 이를 근거로 제거 기능을 복원하지 마세요.
+실제 macOS Dock을 읽기 전용으로 추적합니다. 자체 Dock 생성 기능을 복원하지 마세요.
+입력·포커스는 macOS Dock이 처리합니다. Dock 환경설정·TCC·보안 설정을 변경하거나 Dock을 종료하지 않습니다.
+도시를 끄면 좌표 폴링을 중단합니다. 설정은 스키마 v5이며 이전 도시·로그인·백업을 보존합니다.
+외부 통신·이미지·폰트·오디오·런타임 의존성을 추가하지 않았습니다.
 
-## 현재 코드
+## 2차 피드백 상태
+
+| 항목 | 구현 | 남은 확인 |
+| --- | --- | --- |
+| A 자동 숨김 | JSONL 계측·분석기, 마지막 가시 좌표 캐시·선행 슬라이드 실험 | Mac 전후 ms 측정·타이밍 합의·동시성 확인 |
+| B 제거·호환 | 폐기 기능의 소스·UI·타깃·테스트·관련 문서 삭제, v4 호환 테스트 | Mac 빌드 |
+| E 실행/호버 | 실제 실행 알림 매칭·실제 아이콘 히트 판정·건물별 모션 | Mac 입력 통과·대상 확인 |
+| E 끊김/간격 | 220ms 유예·슬라이드 중단점 유지·크기 변경의 전체 페이드 제거·간격 3→1pt | 원래 증상 재현·개선 측정 |
+| E 라벨 | Dock 소유 창 관측·아래 레벨 비교 옵션 | 실제 라벨 식별 후 레벨 결정 |
+| C 시각 | 결정적 변주·야간 색·밀도/크기·실제 구분선 광장·배경 선택 | 현재 빌드 외관 모두 미확인 |
+| D 환경 | 선택적 고정 서명·LaunchServices 프로브 문서 | Mac 인증서·권한 유지 확인 |
+
+선행 슬라이드는 `--predictive-dock`, 레벨 비교는 `--city-below-dock`으로만 활성화합니다.
+기본 레벨은 Dock+1(사용자 Mac에서 21), 자동 숨김은 기존 AX 기반 표시입니다.
+A와 라벨은 실측 전에 해결됐다고 선언하거나 수치를 추정하지 마세요.
+
+## 코드 지도
 
 | 경로 | 역할 |
 | --- | --- |
-| `Sources/DockKit/SystemDockAXReader.swift` | Dock AX 항목 좌표·역할·앱 URL 및 CG 창 정보 읽기 |
-| `Sources/DockKit/SystemDockCityTracker.swift` | 직렬 비동기 추적, 응답 유효성, 권한·PID·화면 수명 관리 |
-| `Sources/CityKit/TrackedCityLayout.swift` | 하단/좌우 좌표 변환, 화면 선택·클리핑·숨김 판단 |
-| `Sources/DockKit/TrackedCityPanel.swift` | 클릭 통과·비활성 장식 패널과 렌더링 주기 |
-| `Sources/DockKit/CityScene.swift` | 도시 그래픽·건물·조명·시민·차량 |
-| `Sources/Dockman/AppDelegate.swift` | 추적 전용 앱·설정 저장·로그인 실행·메뉴 |
-| `Sources/Dockman/TrackingSettingsView.swift` | 실제 Dock 추적 상태·권한 및 도시 설정 |
-| `Sources/ConfigKit/ConfigModels.swift` | v3 전역 도시 설정과 이전 문서 디코딩 |
+| `Sources/DockKit/SystemDockAXReader.swift` | Dock AX 및 Dock 창 읽기 |
+| `Sources/DockKit/SystemDockCityTracker.swift` | 직렬 읽기·캐시·수명·마우스 위치 샘플링 |
+| `Sources/DockKit/DockDiagnostics.swift` | opt-in 표준 출력 계측; 제목 없음 |
+| `Sources/DockKit/DockMotionPreferences.swift` | 모션 키 읽기 전용 참조 |
+| `Sources/CityKit/DockPresentation.swift` | 일시 누락 유예·중단 가능한 슬라이드 |
+| `Sources/CityKit/CityInteraction.swift` | 실행 이벤트·히트 판정·고정 해시 |
+| `Sources/DockKit/TrackedCityPanel.swift` | 입력 통과 패널·렌더링 |
+| `Sources/DockKit/CityScene.swift` | 도시 그래픽·건물별 모션 |
+| `Sources/DockKit/AppActivityMonitor.swift` | 앱 상태와 실제 실행 알림 |
+| `Sources/ConfigKit` / `Sources/Dockman` | 설정·백업 / 메뉴·설정 UI·로그인 |
 
-기존 `DockModel` 등은 과거 설정을 읽고 보존하기 위한 데이터 타입입니다.
-실행 가능한 자체 Dock 구현은 남겨두지 않았습니다.
-전역 도시 설정이 없으면 첫 활성 Dock, 없으면 첫 Dock의 도시 설정을 가져옵니다.
-설정 위치는 `~/Library/Application Support/com.metaparodica.DockCity/config.json`입니다.
+과거 DockModel은 이전 데이터 보존용입니다. `docs/01`~`docs/09`는 현행 명세가 아닙니다.
 
-## 작업 환경과 검증
+## 클라우드 검증
 
-각 클라우드 작업은 이미 격리되어 있습니다. `/workspace/DockCity`의 기존 checkout을 사용하고
-명시적 요청 없이 Git worktree를 만들지 마세요. 기존 변경과 삭제·새 파일을 모두 보존하세요.
-
-Linux 툴체인과 캐시는 `/workspace/toolchains`에 유지됩니다.
+`/workspace/DockCity`의 기존 checkout을 사용합니다. 현재 환경은 Linux x86_64와 Swift 6.0.3이며 AppKit/Xcode가 없습니다.
 
 ```bash
 cd /workspace/DockCity
@@ -48,43 +58,17 @@ swift test --jobs 4 \
   --cache-path /workspace/toolchains/package-cache \
   --config-path /workspace/toolchains/package-config \
   --security-path /workspace/toolchains/package-security
-swift build -c release --jobs 4 \
+swift test -c release --jobs 4 \
   --cache-path /workspace/toolchains/package-cache \
   --config-path /workspace/toolchains/package-config \
   --security-path /workspace/toolchains/package-security
+node --test scripts/summarize-dock-trace.test.mjs
 ```
 
-도시 전환 당시 검증은 Linux XCTest 31개 성공이었습니다. 눈 기능 추가 후 현재 검증은
-방향 벡터 추가 후 Linux debug 68개 및 release 68개 성공, 각 실패 0개입니다. 이 중 opt-in 데모 도우미 1개는 기본 실행에서 동작하지 않습니다.
-Linux 릴리스 모델 빌드, Swift 소스 파싱, 셸 문법 및 `git diff --check`도 통과했습니다.
-이는 macOS 실행 검증이 아닙니다. AppKit 타입 검사·권한·입력 통과·화면 정렬은 미검증입니다.
-전체 Mac 확인 절차는 [검증 목록](dock-city-validation.md)을 따르세요.
-Mac에서는 `swift build`, `swift test`, `./scripts/make-app.sh app release` 후 실제 GUI에서 실행합니다.
-별도 `probe` 제품은 좌표 진단용입니다. 제거된 `dockman-spike`를 실행하지 마세요.
+모델 테스트 debug/release 각 41개와 분석기 2개를 확인합니다.
+기존 opt-in 데모 도우미 1개는 기본 실행에서 실제 출력을 생성하지 않습니다.
+Linux 파싱은 AppKit 타입 검사가 아니며 기존 커밋의 Mac 성공은 이번 변경의 검증 증거가 아닙니다.
+[전체 검증](dock-city-validation.md), [지연 측정](dock-motion-diagnostics.md),
+[좌표 프로브](system-dock-prototype.md)를 따르세요.
 
-## 추가 구현: 창과 Dock 적설
-
-눈 기능 구현 요청에 따라 SnowCore, SnowOverlayController, 설정/UI와 테스트를 추가했습니다.
-스키마는 v4이며, 도시와 눈 설정은 독립적입니다. 이전 v3 설명은 도시 전환의 이력입니다.
-일반 창 상단·실제 Dock 윗면 적설, 느린 이동 시 운반, 빠른 이동/리사이즈/창 소멸 시 이탈과
-중력 낙하를 구현했습니다. 좌/우 Dock은 실제 상단 모서리에 쌓입니다.
-SnowFallVector와 SnowDirectionControl에서 화살표 방향·길이를 설정합니다.
-설정 벡터는 360도 강설 방향·속도, 파편의 초기 바람에 적용되며 중력은 아래로 유지됩니다.
-실제 macOS 검증은 아직 필요합니다.
-현행 절차는 [적설 검증](snow-validation.md)을 따르세요.
-
-## 조사 기록: 프로그램 창 장식
-
-사용자가 제안한 예시는 창 위에 눈이 쌓이고 창을 움직이면 눈이 관성·중력에 따라 떨어지는 효과입니다.
-오픈소스 우선 조사를 마쳤으며, 이후 눈 적층 기능을 먼저 구현하기로 요청받았습니다.
-조사 결과는 [창 장식 오픈소스 조사](window-effects-research.md)를 참고하세요.
-눈 이외의 테두리·식물·조명·캐릭터·물 효과는 [후속 조사](non-snow-window-effects.md)에 정리했습니다.
-
-우선 후보는 MIT의 `soloiaros/snowy-mac`과 `iystoychev/snowdesk`입니다.
-사용자는 개인 사용을 전제로 라이선스만으로 후보를 제외하지 않도록 지시했습니다.
-원본 라이선스·출처는 보존하고, 비공개 API 의존과 통합 비용은 기술적 판단에 포함합니다.
-외부 이미지·음원·런타임 의존성은 추가하지 않았습니다. SnowDesk의 설계 참고와 MIT 출처를
-THIRD_PARTY_NOTICES.md에 기록했습니다.
-
-환경 초안 저장과 실제 코드/파일 스냅샷 publication은 별개입니다.
-사용자가 요청하지 않은 publish·push·외부 메시지 발송을 하지 마세요.
+사용자 요청 없이 worktree 생성·push·환경 publish·외부 메시지를 수행하지 마세요.

@@ -10,29 +10,8 @@ struct TrackingSettingsView: View {
             var city = controller.config.city; city[keyPath: key] = value; controller.setCity(city)
         })
     }
-    private func snowBinding<T>(_ key: WritableKeyPath<SnowSettings, T>) -> SwiftUI.Binding<T> {
-        SwiftUI.Binding(get: { controller.config.snow[keyPath: key] }, set: { value in
-            var settings = controller.config.snow; settings[keyPath: key] = value; controller.setSnow(settings)
-        })
-    }
     var body: some View {
         Form {
-            Section("Snow on windows") {
-                Text(controller.snowStatus)
-                Toggle("Enable snow", isOn: snowBinding(\.enabled))
-                Picker("Snowfall", selection: snowBinding(\.intensity)) {
-                    ForEach(SnowSettings.Intensity.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
-                }
-                Toggle("Accumulate on windows", isOn: snowBinding(\.accumulateOnWindows))
-                Toggle("Accumulate on Dock", isOn: snowBinding(\.accumulateOnDock))
-                SnowDirectionControl(vector: snowBinding(\.fallVector), paused: controller.config.snow.reduceMotion || !controller.config.snow.enabled)
-                LabeledContent("Maximum depth") { Slider(value: snowBinding(\.maximumDepth), in: 2...30) }
-                Toggle("Freeze snow motion", isOn: snowBinding(\.reduceMotion))
-                Toggle("Snow low power mode", isOn: snowBinding(\.lowPower))
-                Button("Clear snow") { controller.snow.clearSnow() }
-                Text("Both windows and the real Dock collect snow on their upper edge. Snow falls off when a window is moved quickly, resized or closed. Dock accumulation requires Accessibility.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
             Section("macOS Dock tracking") {
                 Text(controller.status).accessibilityLabel("Tracking status: \(controller.status)")
                 Text("Dock City decorates your existing Dock. Manage apps, position, size, magnification and auto-hide in macOS Dock settings.")
@@ -48,6 +27,10 @@ struct TrackingSettingsView: View {
                 if let error = controller.saveError { Text(error).foregroundStyle(.red) }
             }
             Section("Appearance") {
+                Picker("City background", selection: binding(\.background)) {
+                    Text("Translucent sky").tag(CitySettings.Background.sky)
+                    Text("Transparent").tag(CitySettings.Background.transparent)
+                }
                 Toggle("Street decorations", isOn: binding(\.decorations))
                 Picker("City size", selection: binding(\.size)) {
                     ForEach(CitySettings.Size.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }

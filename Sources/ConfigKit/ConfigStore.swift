@@ -39,6 +39,8 @@ public final class ConfigStore {
         // v2 → v3: a single global city follows the real macOS Dock.
         if c.schemaVersion < 3 { c.schemaVersion = 3 }
         if c.schemaVersion < 4 { c.schemaVersion = 4 }
+        // v4 → v5: obsolete effect keys are ignored while decoding.
+        if c.schemaVersion < 5 { c.schemaVersion = 5 }
         // Never downgrade a newer file we don't understand.
         c.schemaVersion = max(c.schemaVersion, config.schemaVersion)
         return c

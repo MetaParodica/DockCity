@@ -53,7 +53,7 @@ public struct CitySimulation {
         let previousCitizenCount = citizens.count, previousVehicleCount = vehicles.count
         self.width = max(1, width)
         let n = settings.citizensEnabled ? min(settings.citizenDensity.count, max(0, Int(width / 55))) : 0
-        let v = settings.trafficEnabled && width >= 90 ? (settings.trafficDensity == .normal ? 2 : min(3, settings.trafficDensity.count)) : 0
+        let v = settings.trafficEnabled && width >= 90 ? min(max(1, Int(width / 100)), min(3, settings.trafficDensity.count)) : 0
         Self.resize(&citizens, count: night ? min(2, n) : n, width: self.width, vehicles: false)
         Self.resize(&vehicles, count: v, width: self.width, vehicles: true)
         if previousCitizenCount != citizens.count || previousVehicleCount != vehicles.count { activeCenter = nil }

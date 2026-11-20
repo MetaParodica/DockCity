@@ -50,7 +50,7 @@ final class CityKitTests: XCTestCase {
     func testActorsReactToActivationAndStayBoundedAcrossResize() {
         var sim = CitySimulation(); var settings = CitySettings()
         sim.configure(width: 360, settings: settings, night: false)
-        XCTAssertEqual(sim.citizens.count, 3); XCTAssertEqual(sim.vehicles.count, 2)
+        XCTAssertEqual(sim.citizens.count, 5); XCTAssertEqual(sim.vehicles.count, 3)
         sim.activate(CityTile(id: "Safari", bundleID: "com.apple.Safari", center: 150, width: 52, activity: .active))
         XCTAssertEqual(sim.citizens[0].destination, 150)
         XCTAssertEqual(sim.vehicles[1].destination, 150)

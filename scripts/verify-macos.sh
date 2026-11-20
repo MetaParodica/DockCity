@@ -12,4 +12,4 @@ swift test --jobs 4
 swift test -c release --jobs 4
 bash scripts/make-app.sh app release
 codesign --verify --strict --verbose=2 'build/Dock City.app'
-echo "Native automated checks passed. Follow docs/snow-validation.md for real window and permission checks."
+echo "Native automated checks passed. Follow docs/dock-city-validation.md for real Dock and permission checks."

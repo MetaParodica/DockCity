@@ -263,25 +263,22 @@ public struct GlobalSettings: Codable, Equatable, Sendable {
 /// The persisted document.
 public struct Config: Codable, Equatable, Sendable {
     /// Bump when the on-disk shape changes; `ConfigStore` migrates forward.
-    public static let currentSchemaVersion = 4
+    public static let currentSchemaVersion = 5
 
     public var schemaVersion: Int
     public var docks: [DockModel]
     public var global: GlobalSettings
     public var city: CitySettings
-    public var snow: SnowSettings
 
     public init(schemaVersion: Int = Config.currentSchemaVersion,
-                docks: [DockModel] = [], global: GlobalSettings = GlobalSettings(), city: CitySettings? = nil,
-                snow: SnowSettings = SnowSettings()) {
+                docks: [DockModel] = [], global: GlobalSettings = GlobalSettings(), city: CitySettings? = nil) {
         self.schemaVersion = schemaVersion
         self.docks = docks
         self.global = global
         self.city = city ?? docks.first(where: { $0.enabled })?.city ?? docks.first?.city ?? CitySettings()
-        self.snow = snow
     }
 
-    private enum CodingKeys: String, CodingKey { case schemaVersion, docks, global, city, snow }
+    private enum CodingKeys: String, CodingKey { case schemaVersion, docks, global, city }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         schemaVersion = try c.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
@@ -290,7 +287,6 @@ public struct Config: Codable, Equatable, Sendable {
         global = try c.decodeIfPresent(GlobalSettings.self, forKey: .global) ?? GlobalSettings()
         city = try c.decodeIfPresent(CitySettings.self, forKey: .city)
             ?? docks.first(where: { $0.enabled })?.city ?? docks.first?.city ?? CitySettings()
-        snow = try c.decodeIfPresent(SnowSettings.self, forKey: .snow) ?? SnowSettings()
     }
 
     public static let empty = Config()

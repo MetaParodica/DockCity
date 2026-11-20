@@ -8,15 +8,12 @@ let v5: [SwiftSetting] = [.swiftLanguageMode(.v5)]
 var products: [Product] = [
     .library(name: "ConfigKit", targets: ["ConfigKit"]),
     .library(name: "CityKit", targets: ["CityKit"]),
-    .library(name: "SnowCore", targets: ["SnowCore"]),
 ]
 var targets: [Target] = [
     .target(name: "ConfigKit", swiftSettings: v5),
     .target(name: "CityKit", dependencies: ["ConfigKit"], swiftSettings: v5),
     .testTarget(name: "ConfigKitTests", dependencies: ["ConfigKit"], swiftSettings: v5),
     .testTarget(name: "CityKitTests", dependencies: ["CityKit", "ConfigKit"], swiftSettings: v5),
-    .target(name: "SnowCore", dependencies: ["ConfigKit"], swiftSettings: v5),
-    .testTarget(name: "SnowCoreTests", dependencies: ["SnowCore", "ConfigKit"], swiftSettings: v5),
 ]
 #if os(macOS)
 products += [
@@ -25,10 +22,10 @@ products += [
     .executable(name: "dock-city-overlay-probe", targets: ["DockCityOverlayProbe"]),
 ]
 targets += [
-    .target(name: "DockKit", dependencies: ["ConfigKit", "CityKit", "SnowCore"], swiftSettings: v5),
+    .target(name: "DockKit", dependencies: ["ConfigKit", "CityKit"], swiftSettings: v5),
     .executableTarget(name: "Dockman", dependencies: ["DockKit", "ConfigKit"], swiftSettings: v5),
     .executableTarget(name: "DockCityOverlayProbe", dependencies: ["DockKit", "CityKit"], swiftSettings: v5),
-    .testTarget(name: "DockKitTests", dependencies: ["DockKit", "ConfigKit", "CityKit", "SnowCore"], swiftSettings: v5),
+    .testTarget(name: "DockKitTests", dependencies: ["DockKit", "ConfigKit", "CityKit"], swiftSettings: v5),
 ]
 #endif
 let package = Package(

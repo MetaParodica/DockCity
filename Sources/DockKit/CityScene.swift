@@ -18,6 +18,7 @@ private func pixel(_ parent: CALayer, _ x: CGFloat, _ y: CGFloat, _ w: CGFloat, 
 /// Cached vector pixel art. Only lights/clock and actor positions change over time.
 final class CityScene {
     let root = CALayer()
+    private let sky = CAGradientLayer()
     private let street = CALayer()
     private let buildings = CALayer()
     private let population = CALayer()
@@ -28,26 +29,39 @@ final class CityScene {
     private var settings = CitySettings()
     private var night = false
     private var streetKey = ""
+    private var hoveredID: String?
 
     init() {
         root.masksToBounds = true
+        sky.name = "sky"; buildings.name = "buildings"
+        root.addSublayer(sky)
         root.addSublayer(street); root.addSublayer(buildings); root.addSublayer(population)
     }
 
-    func configure(tiles: [CityTile], settings: CitySettings, night: Bool, scale: CGFloat) {
+    func configure(tiles: [CityTile], settings: CitySettings, night: Bool, scale: CGFloat, plazas: [ClosedRange<Double>] = []) {
+        let themeChanged = self.night != night
         self.settings = settings; self.night = night
+        if settings.reduceMotion { root.removeAnimation(forKey: "theme") }
         let w = root.bounds.width, h = root.bounds.height
-        let key = "\(w):\(h):\(night):\(settings.decorations)"
+        sky.frame = root.bounds; sky.isHidden = settings.background == .transparent
+        let opacity: CGFloat = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency ? 1 : 0.86
+        sky.colors = (night ? ["#263856", "#5B6C84"] : ["#B9DEEA", "#E1EAD9"]).map {
+            (NSColor(hex: $0) ?? .windowBackgroundColor).withAlphaComponent(opacity).cgColor
+        }
+        let key = "\(w):\(h):\(night):\(settings.decorations):\(plazas)"
         if streetKey != key {
-            if !streetKey.isEmpty && !settings.reduceMotion {
+            if themeChanged && !streetKey.isEmpty && !settings.reduceMotion {
                 let fade = CATransition(); fade.type = .fade; fade.duration = 0.4
                 root.add(fade, forKey: "theme")
             }
             streetKey = key; street.sublayers?.forEach { $0.removeFromSuperlayer() }
-            pixel(street, 0, 0, w, 10, night ? "#222C40" : "#586675")
+            pixel(street, 0, 0, w, 10, night ? "#39485D" : "#687785")
             pixel(street, 0, 10, w, 6, night ? "#586171" : "#D5C6AA")
             pixel(street, 0, 15, w, 1, "#F1DEB5")
             for x in stride(from: CGFloat(6), to: w, by: 19) { pixel(street, x, 4, 8, 1, "#E7DDBD") }
+            for plaza in plazas {
+                pixel(street, CGFloat(plaza.lowerBound), 0, CGFloat(plaza.upperBound - plaza.lowerBound), 16, night ? "#747B87" : "#D4C9B5")
+            }
             if settings.decorations {
                 for x in stride(from: CGFloat(10), to: w, by: 115) {
                     pixel(street, x, 15, 2, 19, "#475568")
@@ -67,12 +81,14 @@ final class CityScene {
             let override = tile.bundleID.flatMap { settings.buildings[$0] }
             let mapped = BuildingStyle.defaultStyle(bundleID: tile.bundleID)
             let style = override?.style ?? (mapped == .office ? settings.defaultStyle : mapped)
-            let nodeKey = "\(style.rawValue):\(override?.color ?? ""): \(night)"
+            let variation = mapped == .office && override?.style == nil ? BuildingVariation(identity: tile.bundleID ?? tile.id) : nil
+            let nodeKey = "\(style.rawValue):\(override?.color ?? ""): \(night):\(String(describing: variation))"
             let node: BuildingNode
             if let old = nodes[tile.id], old.key == nodeKey { node = old }
             else {
                 nodes[tile.id]?.layer.removeFromSuperlayer()
-                node = BuildingNode(style: style, tint: override?.color, night: night, key: nodeKey)
+                node = BuildingNode(style: style, tint: override?.color ?? variation?.color, night: night, key: nodeKey, variation: variation)
+                node.layer.name = tile.id
                 nodes[tile.id] = node; buildings.addSublayer(node.layer)
             }
             let leftGap = i > 0 ? tile.center - ordered[i - 1].center : tile.width + 8
@@ -80,17 +96,18 @@ final class CityScene {
             let width = max(1, min(tile.width, leftGap - 3, rightGap - 3))
             node.layer.contentsScale = scale
             let sx = CGFloat(width) / 60
-            let sy = max(0.01, (h - 17) / 78)
+            let sy = max(0.01, (h - 25) / 78)
             node.layer.setAffineTransform(CGAffineTransform(scaleX: sx, y: sy))
             let target = CGPoint(x: CGFloat(tile.center), y: 16)
             if node.layer.position != target && !settings.reduceMotion {
                 let move = CABasicAnimation(keyPath: "position")
                 move.fromValue = node.layer.presentation()?.position ?? node.layer.position
-                move.toValue = target; move.duration = 0.25
+                move.toValue = target; move.duration = 0.08
                 node.layer.add(move, forKey: "reorder")
             }
             node.layer.position = target
             node.setActivity(tile.activity, intensity: settings.lightIntensity, reduceMotion: settings.reduceMotion)
+            node.setHovered(tile.id == hoveredID, reduced: settings.reduceMotion)
         }
         simulation.configure(width: Double(w), settings: settings, night: night)
         simulation.activate(tiles.first { $0.activity == .active })
@@ -98,6 +115,14 @@ final class CityScene {
         update(seconds: 0, date: Date(), animate: false)
     }
 
+    func launch(tileIDs: Set<String>) {
+        guard !settings.reduceMotion else { return }
+        for id in tileIDs { nodes[id]?.launch() }
+    }
+    func hover(tileID: String?) {
+        hoveredID = tileID
+        for (id, node) in nodes { node.setHovered(id == tileID, reduced: settings.reduceMotion) }
+    }
     private func resizeActors() {
         while citizenLayers.count > simulation.citizens.count { citizenLayers.removeLast().removeFromSuperlayer() }
         while carLayers.count > simulation.vehicles.count { carLayers.removeLast().removeFromSuperlayer() }
@@ -109,6 +134,7 @@ final class CityScene {
             pixel(layer, -2, 1, 4, 4, ["#7CA7BA", "#DE967B", "#9BA873"][i % 3])
             pixel(layer, -2, -2, 1, 3, "#35445B"); pixel(layer, 1, -2, 1, 3, "#35445B")
             citizenLayers.append(layer)
+            layer.setAffineTransform(CGAffineTransform(scaleX: 1.25, y: 1.25))
         }
         while carLayers.count < simulation.vehicles.count {
             let layer = CALayer(); population.addSublayer(layer)
@@ -140,7 +166,7 @@ final class CityScene {
         for (actor, layer) in zip(simulation.vehicles, carLayers) {
             layer.position = CGPoint(x: CGFloat(actor.x), y: 4)
             layer.opacity = actor.state == .idle ? 0 : 1
-            layer.setAffineTransform(CGAffineTransform(scaleX: CGFloat(actor.direction), y: 1))
+            layer.setAffineTransform(CGAffineTransform(scaleX: CGFloat(actor.direction) * 1.15, y: 1.15))
         }
         for node in nodes.values { node.tick(date: date, animate: animate) }
         CATransaction.commit()
@@ -159,21 +185,27 @@ private final class BuildingNode {
     private var initialized = false
     private var entrance: CALayer!
     private var truck: CALayer?
+    private var hovered = false
+    private var hoverStart = 0.0
 
-    init(style: BuildingStyle, tint: String?, night: Bool, key: String) {
+    init(style: BuildingStyle, tint: String?, night: Bool, key: String, variation: BuildingVariation?) {
         self.key = key; self.style = style; self.night = night
         layer.bounds = CGRect(x: 0, y: 0, width: 60, height: 78)
         layer.anchorPoint = CGPoint(x: 0.5, y: 0)
         let colors: [BuildingStyle: String] = [.office: "#B7978C", .glassTower: "#71A8B7", .warehouse: "#C19A6B",
             .concertHall: "#BD7E8D", .clockTower: "#C6AD7B", .library: "#9BAA86", .shop: "#D5A180",
             .serverCenter: "#7F8BA2", .postOffice: "#B58279", .communications: "#8DA2B9", .gallery: "#C6B5A2"]
-        let body = tint ?? (night ? "#52617B" : colors[style] ?? "#B7978C")
+        let base = tint ?? colors[style] ?? "#B7978C"
+        let body = night ? Self.nightColor(base) : base
         let tower = style == .glassTower || style == .clockTower || style == .communications
-        let width: CGFloat = tower ? 34 : 52
+        let width: CGFloat = (tower ? 34 : 52) * CGFloat(variation?.width ?? 1)
         let x = (60 - width) / 2
-        let height: CGFloat = tower ? 65 : style == .warehouse || style == .shop ? 40 : 52
+        let height: CGFloat = (tower ? 65 : style == .warehouse || style == .shop ? 40 : 52) * CGFloat(variation?.height ?? 1)
+        if let variation {
+            for step in 0...variation.roof { pixel(layer, 18 + CGFloat(step * 4), height + CGFloat(step * 3), CGFloat(24 - step * 6), 3, "#73899A") }
+        }
         pixel(layer, x + 2, 0, width, height, "#3F4D63")
-        pixel(layer, x, 0, width, height, body)
+        pixel(layer, x, 0, width, height, body).name = "facade"
         pixel(layer, x, height - 3, width, 3, "#E9CFA9")
         pixel(layer, x + 3, 0, 2, height - 3, night ? "#65738A" : "#E5CDB4")
         switch style {
@@ -233,10 +265,50 @@ private final class BuildingNode {
         }
     }
 
+    private static func nightColor(_ hex: String) -> String {
+        let digits = hex.replacingOccurrences(of: "#", with: "")
+        guard var rgb = UInt32(digits, radix: 16), digits.count == 6 || digits.count == 8 else { return "#52617B" }
+        if digits.count == 8 { rgb >>= 8 }
+        return String(format: "#%02X%02X%02X", Int(Double((rgb >> 16) & 255) * 0.65),
+                      Int(Double((rgb >> 8) & 255) * 0.65), Int(Double(rgb & 255) * 0.7))
+    }
+    func launch() {
+        let bounce = CAKeyframeAnimation(keyPath: "transform.translation.y")
+        bounce.values = [0, 7, 2, 0]; bounce.keyTimes = [0, 0.3, 0.65, 1]
+        bounce.duration = 0.65; bounce.isAdditive = true
+        layer.add(bounce, forKey: "launch")
+    }
+    func setHovered(_ value: Bool, reduced: Bool) {
+        let next = value && !reduced
+        if reduced {
+            layer.removeAnimation(forKey: "launch"); layer.removeAnimation(forKey: "reorder")
+            layer.removeAnimation(forKey: "hoverReturn")
+        }
+        guard next != hovered else { return }
+        let localTime = layer.convertTime(CACurrentMediaTime(), from: nil)
+        let phase = (max(0, localTime - hoverStart).truncatingRemainder(dividingBy: 0.9)) / 0.45
+        let currentLift = hovered ? 2 * (phase <= 1 ? phase : 2 - phase) : 0
+        hovered = next; layer.removeAnimation(forKey: "hover")
+        if next {
+            layer.removeAnimation(forKey: "hoverReturn")
+            let lift = CABasicAnimation(keyPath: "transform.translation.y")
+            lift.fromValue = 0; lift.toValue = 2; lift.duration = 0.45
+            hoverStart = localTime; lift.beginTime = localTime
+            lift.timingFunction = CAMediaTimingFunction(name: .linear)
+            lift.autoreverses = true; lift.repeatCount = .infinity; lift.isAdditive = true
+            layer.add(lift, forKey: "hover")
+        } else if !reduced {
+            let settle = CABasicAnimation(keyPath: "transform.translation.y")
+            settle.fromValue = currentLift; settle.toValue = 0; settle.duration = 0.15; settle.isAdditive = true
+            layer.add(settle, forKey: "hoverReturn")
+        }
+        layer.shadowOpacity = hovered ? 0.45 : state == .active ? 0.35 : 0
+    }
     func setActivity(_ activity: BuildingActivity, intensity: Double, reduceMotion: Bool) {
-        let changed = !initialized || state != activity
+        let changed = initialized && state != activity
         state = activity; initialized = true
         for (i, window) in windows.enumerated() {
+            if reduceMotion { window.removeAnimation(forKey: "activity") }
             let lit = activity == .active || (activity == .running && i % 3 != 0)
             let target = lit ? color(night ? "#FFE2A0" : "#F5D7A1") : color(night ? "#344159" : "#6F98AB")
             if changed && !reduceMotion {
@@ -251,7 +323,7 @@ private final class BuildingNode {
             window.opacity = lit ? Float(min(1, max(0.2, intensity))) : 1
         }
         entrance.backgroundColor = color(activity == .active ? "#FFE2A0" : activity == .running ? "#C5AA7A" : "#526477")
-        layer.shadowColor = color("#FFD999"); layer.shadowOpacity = activity == .active ? 0.35 : 0
+        layer.shadowColor = color("#FFD999"); layer.shadowOpacity = hovered ? 0.45 : activity == .active ? 0.35 : 0
         layer.shadowRadius = 3; layer.shadowOffset = .zero
         truck?.isHidden = activity == .inactive
     }

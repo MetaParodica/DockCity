@@ -29,6 +29,7 @@ public struct BuildingOverride: Codable, Equatable, Sendable {
 }
 
 public struct CitySettings: Codable, Equatable, Sendable {
+    public enum Background: String, Codable, CaseIterable, Sendable { case sky, transparent }
     public enum Size: String, Codable, CaseIterable, Sendable {
         case small, normal, large
         public var height: Double { self == .small ? 66 : self == .large ? 116 : 90 }
@@ -41,13 +42,14 @@ public struct CitySettings: Codable, Equatable, Sendable {
     }
     public enum Density: String, Codable, CaseIterable, Sendable {
         case off, low, normal, high
-        public var count: Int { switch self { case .off: return 0; case .low: return 1; case .normal: return 3; case .high: return 6 } }
+        public var count: Int { switch self { case .off: return 0; case .low: return 1; case .normal: return 5; case .high: return 8 } }
     }
     public enum Quality: String, Codable, CaseIterable, Sendable {
         case low, normal, high
         public var fps: Double { self == .low ? 15 : self == .high ? 60 : 30 }
     }
     public var enabled = true
+    public var background: Background = .sky
     public var decorations = true
     public var size: Size = .normal
     public var timeMode: TimeMode = .automatic
@@ -65,7 +67,7 @@ public struct CitySettings: Codable, Equatable, Sendable {
     public init() {}
 
     private enum CodingKeys: String, CodingKey, CaseIterable {
-        case enabled, decorations, size, timeMode, lightIntensity, defaultStyle
+        case enabled, background, decorations, size, timeMode, lightIntensity, defaultStyle
         case citizensEnabled, citizenDensity, trafficEnabled, trafficDensity
         case quality, reduceMotion, lowPower, pauseWhenNotVisible, buildings
     }
@@ -73,6 +75,7 @@ public struct CitySettings: Codable, Equatable, Sendable {
         self.init()
         let c = try decoder.container(keyedBy: CodingKeys.self)
         enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? enabled
+        background = try c.decodeIfPresent(Background.self, forKey: .background) ?? background
         decorations = try c.decodeIfPresent(Bool.self, forKey: .decorations) ?? decorations
         size = try c.decodeIfPresent(Size.self, forKey: .size) ?? size
         timeMode = try c.decodeIfPresent(TimeMode.self, forKey: .timeMode) ?? timeMode
